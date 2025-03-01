@@ -1,6 +1,12 @@
-#include "../include/VkRenderer.hpp"
+#include "../include/Renderer.hpp"
 
+#include <cstdint>
 #include <iostream>
+#include <vector>
+#include <vulkan/vulkan_core.h>
+
+const char* applicationName = "VulkanApp";
+const char* engineName      = "VulkanEngine";
 
 int Renderer::init(GLFWwindow * newWindow){
     window = newWindow;
@@ -20,9 +26,9 @@ void Renderer::createVulkanInstance(){
     VkApplicationInfo appInfo = {};
     appInfo.sType               = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.applicationVersion  = VK_MAKE_VERSION(0, 1, 0);
-    appInfo.pApplicationName    = "VulkanApp";
+    appInfo.pApplicationName    = applicationName;
     appInfo.engineVersion       = VK_MAKE_VERSION(0, 1, 0);
-    appInfo.pEngineName         = "VulkanEngine";
+    appInfo.pEngineName         = engineName;
     appInfo.apiVersion          = VK_API_VERSION_1_4;
 
     VkInstanceCreateInfo createInfo = {};
@@ -34,6 +40,16 @@ void Renderer::createVulkanInstance(){
     createInfo.ppEnabledLayerNames     = nullptr;
 
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS){
-        throw std::runtime_error("Failed to create vulkan instanc!");
+        throw std::runtime_error("Failed to create Vulkan instance!");
     }
+}
+
+void Renderer::pickPhysicalDevice(){
+    uint32_t physicalDevciceCount ;
+    vkEnumeratePhysicalDevices(instance, &physicalDevciceCount, nullptr);
+
+    std::vector<VkPhysicalDevice> physicalDevices = {};
+    physicalDevices.resize(physicalDevciceCount);
+
+    vkEnumeratePhysicalDevices(instance, &physicalDevciceCount, physicalDevices.data());
 }
