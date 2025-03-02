@@ -5,7 +5,7 @@
 
 class Renderer {
 public:
-    int init(GLFWwindow * newWindow);
+    int init(GLFWwindow * appWindow, const char* applicationName, const char* engineName);
 
 private:
     GLFWwindow * window;  
@@ -13,11 +13,11 @@ private:
     VkInstance instance;
 
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    VkDevice device = VK_NULL_HANDLE;
+    VkDevice device                 = VK_NULL_HANDLE;
 
 
     // Main Functions
-    void createVulkanInstance();
+    void createVulkanInstance(const char* applicationName, const char* engineName);
     void pickPhysicalDevice();
     void createLogicalDevice();
 };

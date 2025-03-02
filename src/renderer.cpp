@@ -1,17 +1,13 @@
-#include "../include/Renderer.hpp"
+#include "renderer.hpp"
 
 #include <cstdint>
 #include <iostream>
 #include <vector>
-#include <vulkan/vulkan_core.h>
 
-const char* applicationName = "VulkanApp";
-const char* engineName      = "VulkanEngine";
-
-int Renderer::init(GLFWwindow * newWindow){
-    window = newWindow;
+int Renderer::init(GLFWwindow * appWindow, const char* applicationName, const char* engineName){
+    window = appWindow;
     try {
-        createVulkanInstance();
+        createVulkanInstance(applicationName, engineName);
         pickPhysicalDevice();
         createLogicalDevice();    
     } catch (std::runtime_error &e) {
@@ -22,7 +18,7 @@ int Renderer::init(GLFWwindow * newWindow){
     return EXIT_SUCCESS;
 }
 
-void Renderer::createVulkanInstance(){
+void Renderer::createVulkanInstance(const char* applicationName, const char* engineName){
     VkApplicationInfo appInfo = {};
     appInfo.sType               = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.applicationVersion  = VK_MAKE_VERSION(0, 1, 0);
