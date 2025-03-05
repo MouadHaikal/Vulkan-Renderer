@@ -1,8 +1,6 @@
 #include "renderer.hpp"
 
-#include <GLFW/glfw3.h>
 #include <cstddef>
-#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
