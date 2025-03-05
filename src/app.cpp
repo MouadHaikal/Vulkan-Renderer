@@ -13,20 +13,22 @@ void App::run(){
 
 void App::init(){
     glfwInit();
-    initWindow(appName);
+    initWindow("VulkanApp");
 
-    if (renderer.init(window, appName, engineName) != EXIT_SUCCESS) {
+    if (renderer.init(window) != EXIT_SUCCESS) {
         throw std::runtime_error("Failed to initialize renderer!");
     }
 }
 
 void App::mainLoop(){
-    while (glfwWindowShouldClose(window)) {
+    while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
     }
 }
 
 void App::cleanUp(){
+    renderer.cleanUp();
+
     glfwDestroyWindow(window);
     glfwTerminate();
 }

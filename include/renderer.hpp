@@ -2,22 +2,31 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <cstdint>
 
 class Renderer {
 public:
-    int init(GLFWwindow * appWindow, const char* applicationName, const char* engineName);
+    Renderer() : physicalDevice(VK_NULL_HANDLE), device(VK_NULL_HANDLE) {};
+
+    int init(GLFWwindow * appWindow);
+
+    void cleanUp();
 
 private:
-    GLFWwindow * window;  
+    GLFWwindow *          window;  
 
-    VkInstance instance;
+    VkInstance            instance;
 
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    VkDevice device                 = VK_NULL_HANDLE;
+    VkPhysicalDevice      physicalDevice;
+    VkDevice              device;
 
 
     // Main Functions
-    void createVulkanInstance(const char* applicationName, const char* engineName);
+    void createVulkanInstance();
     void pickPhysicalDevice();
     void createLogicalDevice();
+
+
+    // Helper Functions
+    bool checkInstanceExtensionSupport(const uint32_t extensionCount, const char* const* extensionNames);
 };

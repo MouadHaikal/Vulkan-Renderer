@@ -11,9 +11,6 @@ private:
     static const uint32_t WIDTH = 800;
     static const uint32_t HEIGHT = 600;
 
-    const char* appName    = "VulkanApp";
-    const char* engineName = "VulkanApp";
-
     // Main Properties
     GLFWwindow * window;
     Renderer renderer;

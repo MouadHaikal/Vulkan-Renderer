@@ -1,8 +1,9 @@
 # Cache
 .cache/
 
-# Build directory
+# Build directories
 build/
+bin/
 
 # Prerequisites
 *.d
