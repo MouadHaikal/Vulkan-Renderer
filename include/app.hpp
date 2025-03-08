@@ -2,16 +2,15 @@
 
 #include "renderer.hpp"
 
+const uint32_t WIDTH = 800;
+const uint32_t HEIGHT = 600;
+
 class App {
 public: 
     void run();
 
 private:
-    // Constants
-    static const uint32_t WIDTH = 800;
-    static const uint32_t HEIGHT = 600;
-
-    // Main Properties
+    // Variables
     GLFWwindow * window;
     Renderer renderer;
 

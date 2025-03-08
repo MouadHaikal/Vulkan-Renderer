@@ -1,8 +1,20 @@
 #pragma once
 
+#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <cstdint>
+
+#include <vector>
+
+const std::vector<const char*> validationLayers = {
+    "VK_LAYER_KHRONOS_validation"
+};
+
+#ifdef NDEBUG
+    const bool enableValidationLayers = false;
+#else
+    const bool enableValidationLayers = true;
+#endif
 
 class Renderer {
 public:
@@ -17,6 +29,8 @@ private:
 
     VkInstance            instance;
 
+    VkDebugUtilsMessengerEXT debugMessenger;
+
     VkPhysicalDevice      physicalDevice;
     VkDevice              device;
 
@@ -27,6 +41,30 @@ private:
     void createLogicalDevice();
 
 
+    // Validation 
+    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+        VkDebugUtilsMessageTypeFlagsEXT messageType,
+        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+        void* pUserData
+    );
+    static VkResult CreateDebugUtilsMessengerEXT(
+        VkInstance instance, 
+        const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+        const VkAllocationCallbacks* pAllocator,
+        VkDebugUtilsMessengerEXT* pDebugMessenger
+    );
+    static void DestroyDebugUtilsMessengerEXT(
+        VkInstance instance,
+        VkDebugUtilsMessengerEXT debugMessenger,
+        const VkAllocationCallbacks* pAllocator
+    );
+    void setupDebugMessenger();
+
+
     // Helper Functions
-    bool checkInstanceExtensionSupport(const uint32_t extensionCount, const char* const* extensionNames);
+    std::vector<const char*> getRequiredExtensions();
+    bool checkInstanceExtensionSupport(std::vector<const char*> &extensions);
+    bool checkValidationLayerSupport();
+    void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 };
