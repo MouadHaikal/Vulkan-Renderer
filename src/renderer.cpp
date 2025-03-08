@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <cstring>
 #include <stdexcept>
-#include <vulkan/vulkan_core.h>
 
 
 //==================================Main Functions==================================
