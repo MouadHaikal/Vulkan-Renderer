@@ -19,9 +19,11 @@ const std::vector<const char*> validationLayers = {
 
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
+    std::optional<uint32_t> presentFamily;
 
     bool isComplete(){
-        return graphicsFamily.has_value();
+        return graphicsFamily.has_value() &&
+               presentFamily.has_value();
     }
 };
 
@@ -43,9 +45,15 @@ private:
     VkPhysicalDevice          physicalDevice;
     VkDevice                  device;
 
+    VkQueue                   graphicsQueue;
+    VkQueue                   presentQueue;
+
+    VkSurfaceKHR              surface;
+
 
     //==================================Main Functions==================================
     void createVulkanInstance();
+    void createSurface();
     void pickPhysicalDevice();
     void createLogicalDevice();
 

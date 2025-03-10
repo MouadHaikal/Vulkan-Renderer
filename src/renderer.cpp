@@ -1,6 +1,10 @@
 #include "renderer.hpp"
 
+#include <GLFW/glfw3.h>
+
 #include <iostream>
+#include <ostream>
+#include <set>
 #include <utility>
 #include <vector>
 #include <cstdint>
@@ -15,7 +19,9 @@ int Renderer::init(GLFWwindow * appWindow){
     try {
         createVulkanInstance();
         setupDebugMessenger();
+        createSurface();
         pickPhysicalDevice();
+        createLogicalDevice();
     } catch (std::runtime_error &e) {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;
@@ -25,10 +31,13 @@ int Renderer::init(GLFWwindow * appWindow){
 }
 
 void Renderer::cleanUp(){
+    vkDestroyDevice(device, nullptr);
+
     if (enableValidationLayers) {
         DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
     }
 
+    vkDestroySurfaceKHR(instance, surface, nullptr);
     vkDestroyInstance(instance, nullptr);
 }
 
@@ -80,6 +89,12 @@ void Renderer::createVulkanInstance(){
     }
 }
 
+void Renderer::createSurface(){
+    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create window surface!");
+    }
+}
+
 void Renderer::pickPhysicalDevice(){
     uint32_t devciceCount ;
     vkEnumeratePhysicalDevices(instance, &devciceCount, nullptr);
@@ -93,7 +108,6 @@ void Renderer::pickPhysicalDevice(){
 
     std::multimap<int, VkPhysicalDevice> candidates;
 
-    // Pick first suitable device
     for (const auto& device : devices){
         int score = rateDeviceSuitability(device);
         candidates.insert(std::make_pair(score, device));
@@ -104,6 +118,59 @@ void Renderer::pickPhysicalDevice(){
     } else {
         throw std::runtime_error("Failed to find suitable GPU!");
     }
+}
+
+void Renderer::createLogicalDevice(){
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
+    std::set<uint32_t> uniqueQueueFamilies = {
+        indices.graphicsFamily.value(),
+        indices.presentFamily.value()
+    };
+
+    float queuePriority = 1.0f;
+
+    for (uint32_t queueFamily : uniqueQueueFamilies) {
+        VkDeviceQueueCreateInfo queueCreateInfo{};
+
+        queueCreateInfo.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = queueFamily;
+        queueCreateInfo.queueCount       = 1;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+
+        queueCreateInfos.push_back(queueCreateInfo);
+    }
+
+
+    VkPhysicalDeviceFeatures deviceFeatures{};
+
+
+    VkDeviceCreateInfo createInfo{};
+    createInfo.sType                 = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.queueCreateInfoCount  = static_cast<uint32_t>(queueCreateInfos.size());
+    createInfo.pQueueCreateInfos     = queueCreateInfos.data();
+    createInfo.pEnabledFeatures      = &deviceFeatures;
+
+    // Extensions
+    createInfo.enabledExtensionCount = 0;
+    
+    // Validation Layers
+    // -- Optional (device specific layers are deprecated)
+    if (enableValidationLayers){
+        createInfo.enabledLayerCount       = static_cast<uint32_t>(validationLayers.size());
+        createInfo.ppEnabledLayerNames     = validationLayers.data();
+    } else {
+        createInfo.enabledLayerCount       = 0;
+        createInfo.ppEnabledLayerNames     = nullptr;
+    }
+
+    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create logical device!");
+    }
+
+    vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
+    vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
 }
 
 
@@ -245,6 +312,13 @@ QueueFamilyIndices Renderer::findQueueFamilies(VkPhysicalDevice device){
     for (const auto& queueFamily : queueFamilies) {
         if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             indices.graphicsFamily = i;
+        }
+
+        VkBool32 presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+
+        if (presentSupport) {
+            indices.presentFamily = i;
         }
 
         if (indices.isComplete()) break;
