@@ -1,10 +1,11 @@
 #pragma once
 
-#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <cstdint>
 #include <vector>
+#include <optional>
 
 const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
@@ -16,6 +17,14 @@ const std::vector<const char*> validationLayers = {
     const bool enableValidationLayers = true;
 #endif
 
+struct QueueFamilyIndices {
+    std::optional<uint32_t> graphicsFamily;
+
+    bool isComplete(){
+        return graphicsFamily.has_value();
+    }
+};
+
 class Renderer {
 public:
     Renderer() : physicalDevice(VK_NULL_HANDLE), device(VK_NULL_HANDLE) {};
@@ -25,23 +34,23 @@ public:
     void cleanUp();
 
 private:
-    GLFWwindow *          window;  
+    GLFWwindow *              window;  
 
-    VkInstance            instance;
+    VkInstance                instance;
 
-    VkDebugUtilsMessengerEXT debugMessenger;
+    VkDebugUtilsMessengerEXT  debugMessenger;
 
-    VkPhysicalDevice      physicalDevice;
-    VkDevice              device;
+    VkPhysicalDevice          physicalDevice;
+    VkDevice                  device;
 
 
-    // Main Functions
+    //==================================Main Functions==================================
     void createVulkanInstance();
     void pickPhysicalDevice();
     void createLogicalDevice();
 
 
-    // Validation 
+    //==================================Validation==================================
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -62,9 +71,13 @@ private:
     void setupDebugMessenger();
 
 
-    // Helper Functions
+    //==================================Helper Functions==================================
     std::vector<const char*> getRequiredExtensions();
     bool checkInstanceExtensionSupport(std::vector<const char*> &extensions);
     bool checkValidationLayerSupport();
+
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+
+    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+    int rateDeviceSuitability(VkPhysicalDevice device);
 };
