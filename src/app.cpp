@@ -4,10 +4,31 @@
 #include <iostream>
 #include <stdexcept>
 
+#include <atomic>
+#include <thread>
+
+// Global atomic flag to signal window closure
+std::atomic<bool> closeRequested{false};
+
 // Main Functions
 void App::run(){
     init();
+
+    // Start a thread to wait for "x" input on the terminal
+    std::thread inputThread([](){
+        std::string input;
+        while (std::getline(std::cin, input)) {
+            if (input == "x") {
+                closeRequested.store(true);
+                break;
+            }
+        }
+    });
+
     mainLoop();
+
+    inputThread.join(); // Wait for the input thread to finish
+
     cleanUp();
 }
 
@@ -22,7 +43,13 @@ void App::init(){
 
 void App::mainLoop(){
     while (!glfwWindowShouldClose(window)) {
+        if (closeRequested.load()) {
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+        }
         glfwPollEvents();
+
+        // Optionally sleep briefly to avoid busy waiting
+        /*std::this_thread::sleep_for(std::chrono::milliseconds(10));*/
     }
 }
 
