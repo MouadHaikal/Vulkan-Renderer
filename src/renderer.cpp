@@ -14,6 +14,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <map>
+#include <vulkan/vulkan_core.h>
 
 
 //==================================Main Functions==================================
@@ -185,6 +186,7 @@ void Renderer::createSwapchain(){
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapchainSupport.formats);
     VkPresentModeKHR   presentMode   = chooseSwapPresentMode(swapchainSupport.presentModes);
     VkExtent2D         extent        = chooseSwapExtent(swapchainSupport.capabilities);
+    std::cout << extent.width << std::endl;
 
     uint32_t           imageCount    = swapchainSupport.capabilities.minImageCount + 1;
     if (!swapchainSupport.capabilities.maxImageCount && imageCount > swapchainSupport.capabilities.maxImageCount) {
@@ -223,6 +225,13 @@ void Renderer::createSwapchain(){
     if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapchain) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create swapchain!");
     }
+
+    vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
+    swapchainImages.resize(imageCount);
+    vkGetSwapchainImagesKHR(device, swapchain, &imageCount, swapchainImages.data());
+
+    swapchainImageFormat = surfaceFormat.format;
+    swapchainExtent      = extent;
 }
 
 

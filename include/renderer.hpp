@@ -62,6 +62,9 @@ private:
     VkSurfaceKHR              surface;
 
     VkSwapchainKHR            swapchain;
+    std::vector<VkImage>      swapchainImages;
+    VkFormat                  swapchainImageFormat;
+    VkExtent2D                swapchainExtent;
 
 
     //==================================Main Functions==================================
