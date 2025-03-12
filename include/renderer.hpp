@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -66,6 +65,8 @@ private:
     VkFormat                  swapchainImageFormat;
     VkExtent2D                swapchainExtent;
 
+    std::vector<VkImageView>  swapchainImageViews;
+
 
     //==================================Main Functions==================================
     void createVulkanInstance();
@@ -73,6 +74,7 @@ private:
     void pickPhysicalDevice();
     void createLogicalDevice();
     void createSwapchain();
+    void createImageViews();
 
 
     //==================================Validation==================================
