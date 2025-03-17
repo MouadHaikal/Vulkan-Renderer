@@ -23,6 +23,7 @@ int Renderer::init(GLFWwindow * appWindow){
         createLogicalDevice();
         createSwapchain();
         createImageViews();
+        createGraphicsPipeline();
     } catch (std::runtime_error &e) {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;
@@ -186,10 +187,11 @@ void Renderer::createSwapchain(){
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapchainSupport.formats);
     VkPresentModeKHR   presentMode   = chooseSwapPresentMode(swapchainSupport.presentModes);
     VkExtent2D         extent        = chooseSwapExtent(swapchainSupport.capabilities);
-    std::cout << extent.width << std::endl;
 
     uint32_t           imageCount    = swapchainSupport.capabilities.minImageCount + 1;
-    if (!swapchainSupport.capabilities.maxImageCount && imageCount > swapchainSupport.capabilities.maxImageCount) {
+    // maxImageCount == 0 is a special value to indicate that there is no maximum
+    // Check if imageCount has exceeded the maximum
+    if (swapchainSupport.capabilities.maxImageCount && imageCount > swapchainSupport.capabilities.maxImageCount) {
                        imageCount    = swapchainSupport.capabilities.maxImageCount; 
     }
 
@@ -212,8 +214,8 @@ void Renderer::createSwapchain(){
         createInfo.pQueueFamilyIndices   = queueFamilyIndices;
     } else {
         createInfo.imageSharingMode      = VK_SHARING_MODE_EXCLUSIVE;
-        createInfo.queueFamilyIndexCount = 0;
-        createInfo.pQueueFamilyIndices   = nullptr;
+        createInfo.queueFamilyIndexCount = 0;             // Optional
+        createInfo.pQueueFamilyIndices   = nullptr;       // Optional
     }
 
     createInfo.preTransform          = swapchainSupport.capabilities.currentTransform;
@@ -260,6 +262,10 @@ void Renderer::createImageViews(){
             throw std::runtime_error("Failed to create image views!");
         }
     }
+}
+
+void Renderer::createGraphicsPipeline(){
+
 }
 
 
@@ -429,12 +435,14 @@ int Renderer::rateDeviceSuitability(VkPhysicalDevice device){
     VkPhysicalDeviceFeatures deviceFeatures;
     vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
 
+    // Must check for swapchain extension support before querying for details
+    if (!checkDeviceExtensionSupport(device)) return 0;
+
     SwapchainSupportDetails swapchainDetails = querySwapchainSupport(device);
 
 
     // Required
     bool required = indices.isComplete() &&
-                    checkDeviceExtensionSupport(device) &&
                     !swapchainDetails.formats.empty() &&
                     !swapchainDetails.presentModes.empty();
 
@@ -467,8 +475,10 @@ bool Renderer::checkDeviceExtensionSupport(VkPhysicalDevice device){
 SwapchainSupportDetails Renderer::querySwapchainSupport(VkPhysicalDevice device){
     SwapchainSupportDetails details;
 
+    // Capabilities
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
 
+    // Formats
     uint32_t formatCount;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
     if (formatCount) {
@@ -476,13 +486,13 @@ SwapchainSupportDetails Renderer::querySwapchainSupport(VkPhysicalDevice device)
         vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.data());
     }
 
+    // Presentation modes
     uint32_t presentModeCount;
     vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
     if (presentModeCount) {
         details.presentModes.resize(presentModeCount);
         vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.presentModes.data());
     }
-    
 
     return details;
 }
@@ -508,12 +518,13 @@ VkPresentModeKHR Renderer::chooseSwapPresentMode(const std::vector<VkPresentMode
 }
 
 VkExtent2D Renderer::chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities){
+    // Special value to indicate that the extent should be chosen and set manually
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
         return capabilities.currentExtent;
     } 
 
     int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
+    glfwGetFramebufferSize(window, &width, &height);    // In pixels
 
     VkExtent2D actualExtent = {
         static_cast<uint32_t>(width),

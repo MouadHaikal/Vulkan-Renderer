@@ -2,6 +2,7 @@
 
 #include "renderer.hpp"
 
+// Window resolution in screen coordinates
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 

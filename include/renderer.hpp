@@ -64,7 +64,6 @@ private:
     std::vector<VkImage>      swapchainImages;
     VkFormat                  swapchainImageFormat;
     VkExtent2D                swapchainExtent;
-
     std::vector<VkImageView>  swapchainImageViews;
 
 
@@ -75,6 +74,7 @@ private:
     void createLogicalDevice();
     void createSwapchain();
     void createImageViews();
+    void createGraphicsPipeline();
 
 
     //==================================Validation==================================
