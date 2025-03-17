@@ -1,11 +1,17 @@
 #pragma once
 
+#include <string>
+#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 #include <cstdint>
 #include <vector>
 #include <optional>
+
+
+#define VERTEX_SHADER_CODE   "../shaders/spirv/vert.spv"  
+#define FRAGMENT_SHADER_CODE "../shaders/spirv/frag.spv"  
 
 const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
@@ -113,4 +119,8 @@ private:
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats);
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availableModes);
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities);
+
+    static std::vector<char> readFile(const std::string &fileName);
+
+    VkShaderModule createShaderModule(const std::vector<char> &code);
 };
