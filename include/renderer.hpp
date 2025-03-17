@@ -1,10 +1,9 @@
 #pragma once
 
-#include <string>
-#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <string>
 #include <cstdint>
 #include <vector>
 #include <optional>
@@ -49,7 +48,7 @@ public:
 
     int init(GLFWwindow * appWindow);
 
-    void cleanUp();
+    void cleanup();
 
 private:
     GLFWwindow *              window;  
@@ -72,6 +71,10 @@ private:
     VkExtent2D                swapchainExtent;
     std::vector<VkImageView>  swapchainImageViews;
 
+    VkRenderPass              renderPass;
+    VkPipelineLayout          pipelineLayout;
+    VkPipeline                graphicsPipeline;
+
 
     //==================================Main Functions==================================
     void createVulkanInstance();
@@ -80,6 +83,7 @@ private:
     void createLogicalDevice();
     void createSwapchain();
     void createImageViews();
+    void createRenderPass();
     void createGraphicsPipeline();
 
 

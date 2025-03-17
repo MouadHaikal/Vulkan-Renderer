@@ -29,7 +29,7 @@ void App::run(){
 
     inputThread.join(); // Wait for the input thread to finish
 
-    cleanUp();
+    cleanup();
 }
 
 void App::init(){
@@ -53,8 +53,8 @@ void App::mainLoop(){
     }
 }
 
-void App::cleanUp(){
-    renderer.cleanUp();
+void App::cleanup(){
+    renderer.cleanup();
 
     glfwDestroyWindow(window);
     glfwTerminate();

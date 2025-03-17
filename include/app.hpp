@@ -19,7 +19,7 @@ private:
     // Main Functions
     void init();
     void mainLoop();
-    void cleanUp();
+    void cleanup();
     
     // Helper Functions
     void initWindow(const char* title);
