@@ -15,6 +15,7 @@
 #include <stdexcept>
 #include <map>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 
 //==================================Main Functions==================================
@@ -39,6 +40,7 @@ int Renderer::init(GLFWwindow * appWindow){
 }
 
 void Renderer::cleanup(){ 
+    vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyRenderPass(device, renderPass, nullptr);
 
