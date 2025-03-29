@@ -47,6 +47,7 @@ void App::mainLoop(){
             glfwSetWindowShouldClose(window, GLFW_TRUE);
         }
         glfwPollEvents();
+        renderer.drawFrame();
 
         // Optionally sleep briefly to avoid busy waiting
         /*std::this_thread::sleep_for(std::chrono::milliseconds(10));*/

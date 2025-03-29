@@ -49,6 +49,8 @@ public:
 
     int init(GLFWwindow * appWindow);
 
+    void drawFrame();
+
     void cleanup();
 
 private:
@@ -79,6 +81,7 @@ private:
     std::vector<VkFramebuffer> swapchainFramebuffers;
 
     VkCommandPool              commandPool;
+    VkCommandBuffer            commandBuffer;
 
 
     //==================================Main Functions==================================
@@ -92,6 +95,7 @@ private:
     void createGraphicsPipeline();
     void createFramebuffers();
     void createCommandPool();
+    void createCommandBuffer();
 
 
     //==================================Validation==================================
@@ -134,4 +138,6 @@ private:
     static std::vector<char> readFile(const std::string &fileName);
 
     VkShaderModule createShaderModule(const std::vector<char> &code);
+
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 };
