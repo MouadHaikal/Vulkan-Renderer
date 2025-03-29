@@ -15,7 +15,6 @@
 #include <stdexcept>
 #include <map>
 #include <vector>
-#include <vulkan/vulkan_core.h>
 
 
 //==================================Main Functions==================================
@@ -31,6 +30,8 @@ int Renderer::init(GLFWwindow * appWindow){
         createImageViews();
         createRenderPass();
         createGraphicsPipeline();
+        createFramebuffers();
+        createCommandPool();
     } catch (std::runtime_error &e) {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;
@@ -40,6 +41,12 @@ int Renderer::init(GLFWwindow * appWindow){
 }
 
 void Renderer::cleanup(){ 
+    vkDestroyCommandPool(device, commandPool, nullptr);
+
+    for (auto framebuffer : swapchainFramebuffers) {
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
+    }
+
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyRenderPass(device, renderPass, nullptr);
@@ -60,7 +67,7 @@ void Renderer::cleanup(){
 }
 
 void Renderer::createVulkanInstance(){
-    VkApplicationInfo appInfo = {};
+    VkApplicationInfo appInfo{};
     appInfo.sType               = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.applicationVersion  = VK_MAKE_VERSION(0, 1, 0);
     appInfo.pApplicationName    = "VulkanApp";
@@ -68,7 +75,7 @@ void Renderer::createVulkanInstance(){
     appInfo.pEngineName         = "No Engine";
     appInfo.apiVersion          = VK_API_VERSION_1_4;
 
-    VkInstanceCreateInfo createInfo = {};
+    VkInstanceCreateInfo createInfo{};
     createInfo.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo        = &appInfo;
 
@@ -114,15 +121,15 @@ void Renderer::createSurface(){
 }
 
 void Renderer::pickPhysicalDevice(){
-    uint32_t devciceCount ;
-    vkEnumeratePhysicalDevices(instance, &devciceCount, nullptr);
+    uint32_t deviceCount ;
+    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
-    if (!devciceCount){
+    if (!deviceCount){
         throw std::runtime_error("Failed to find a GPU with Vulkan support!");
     }
 
-    std::vector<VkPhysicalDevice> devices(devciceCount);
-    vkEnumeratePhysicalDevices(instance, &devciceCount, devices.data());
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
     std::multimap<int, VkPhysicalDevice> candidates;
 
@@ -200,7 +207,7 @@ void Renderer::createSwapchain(){
     VkExtent2D         extent        = chooseSwapExtent(swapchainSupport.capabilities);
 
     uint32_t           imageCount    = swapchainSupport.capabilities.minImageCount + 1;
-    // maxImageCount == 0 is a special value to indicate that there is no maximum
+    // 'maxImageCount == 0' is a special value to indicate that there is no maximum
     // Check if imageCount has exceeded the maximum
     if (swapchainSupport.capabilities.maxImageCount && imageCount > swapchainSupport.capabilities.maxImageCount) {
                        imageCount    = swapchainSupport.capabilities.maxImageCount; 
@@ -443,6 +450,42 @@ void Renderer::createGraphicsPipeline(){
     // Cleanup --------------------------------
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
+}
+
+void Renderer::createFramebuffers(){
+    swapchainFramebuffers.reserve(swapchainImageViews.size());
+
+    for (size_t i=0; i < swapchainImageViews.size(); ++i) {
+        VkImageView attachments[] = {
+            swapchainImageViews[i]
+        };
+
+        VkFramebufferCreateInfo createInfo{};
+        createInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        createInfo.renderPass      = renderPass;
+        createInfo.attachmentCount = 1;
+        createInfo.pAttachments    = attachments;
+        createInfo.width           = swapchainExtent.width;
+        createInfo.height          = swapchainExtent.height;
+        createInfo.layers          = 1;
+
+        if (vkCreateFramebuffer(device, &createInfo, nullptr, &swapchainFramebuffers[i]) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create framebuffers!");
+        }
+    }
+}
+
+void Renderer::createCommandPool(){
+    QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
+
+    VkCommandPoolCreateInfo createInfo{};
+    createInfo.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    createInfo.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    createInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+
+    if (vkCreateCommandPool(device, &createInfo, nullptr, &commandPool) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create command pool!");
+    }
 }
 
 

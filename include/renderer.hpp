@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -51,29 +52,33 @@ public:
     void cleanup();
 
 private:
-    GLFWwindow *              window;  
+    GLFWwindow *               window;  
 
-    VkInstance                instance;
+    VkInstance                 instance;
 
-    VkDebugUtilsMessengerEXT  debugMessenger;
+    VkDebugUtilsMessengerEXT   debugMessenger;
 
-    VkPhysicalDevice          physicalDevice;
-    VkDevice                  device;
+    VkPhysicalDevice           physicalDevice;
+    VkDevice                   device;
 
-    VkQueue                   graphicsQueue;
-    VkQueue                   presentQueue;
+    VkQueue                    graphicsQueue;
+    VkQueue                    presentQueue;
 
-    VkSurfaceKHR              surface;
+    VkSurfaceKHR               surface;
 
-    VkSwapchainKHR            swapchain;
-    std::vector<VkImage>      swapchainImages;
-    VkFormat                  swapchainImageFormat;
-    VkExtent2D                swapchainExtent;
-    std::vector<VkImageView>  swapchainImageViews;
+    VkSwapchainKHR             swapchain;
+    std::vector<VkImage>       swapchainImages;
+    VkFormat                   swapchainImageFormat;
+    VkExtent2D                 swapchainExtent;
+    std::vector<VkImageView>   swapchainImageViews;
 
-    VkRenderPass              renderPass;
-    VkPipelineLayout          pipelineLayout;
-    VkPipeline                graphicsPipeline;
+    VkRenderPass               renderPass;
+    VkPipelineLayout           pipelineLayout;
+    VkPipeline                 graphicsPipeline;
+
+    std::vector<VkFramebuffer> swapchainFramebuffers;
+
+    VkCommandPool              commandPool;
 
 
     //==================================Main Functions==================================
@@ -85,6 +90,8 @@ private:
     void createImageViews();
     void createRenderPass();
     void createGraphicsPipeline();
+    void createFramebuffers();
+    void createCommandPool();
 
 
     //==================================Validation==================================
