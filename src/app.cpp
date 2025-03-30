@@ -1,8 +1,8 @@
 #include "app.hpp"
+#include "logger.hpp"
 
 #include <cstdlib>
 #include <iostream>
-#include <stdexcept>
 
 // Main Functions
 void App::run(){
@@ -14,6 +14,8 @@ void App::run(){
 }
 
 void App::init(){
+    Logger::get().setMinLevel(Logger::Level::DEBUG);
+
     glfwInit();
     initWindow("VulkanApp");
 
@@ -49,8 +51,9 @@ void App::initWindow(const char* title){
     
     if (monitor){
         glfwGetMonitorContentScale(monitor, &xScale, &yScale);
+        std::cout << "Accounting for monitor scale: " << xScale << "x" << yScale << std::endl;
     } else {
-        std::cerr << "Failed to get primary monitor!" << std::endl;
+        std::cerr << "Failed to get primary monitor! Ignoring monitor scale!" << std::endl;
         xScale = 1.0f;
         yScale = 1.0f;
     }

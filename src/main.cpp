@@ -6,6 +6,7 @@
 //
 // TODO: Set Application/Engine name in Renderer::createVulkanInstance() and App::init()
 // TODO: Edit Renderer::rateDeviceSuitability(VkPhysicalDevice device)
+// TODO: Set build config macro (App::init())
 
 int main(){
     App app;

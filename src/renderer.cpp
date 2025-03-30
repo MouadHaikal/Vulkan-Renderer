@@ -1,4 +1,5 @@
 #include "renderer.hpp"
+#include "logger.hpp"
 
 #include <algorithm>
 #include <cmath>
