@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -20,6 +21,8 @@ const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
+const int MAX_FRAMES_IN_FLIGHT = 2;
+
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
@@ -38,7 +41,8 @@ struct SwapchainSupportDetails {
 
 class Renderer {
 public:
-    Renderer() : physicalDevice(VK_NULL_HANDLE), device(VK_NULL_HANDLE), enableValidationLayers(false) {};
+    bool framebufferResized = false;
+
 
     void init(GLFWwindow * appWindow);
 
@@ -49,38 +53,40 @@ public:
     void cleanup();
 
 private:
-    GLFWwindow *               window;  
+    GLFWwindow *                 window;  
 
-    VkInstance                 instance;
+    VkInstance                   instance;
 
-    VkDebugUtilsMessengerEXT   debugMessenger;
+    VkDebugUtilsMessengerEXT     debugMessenger;
 
-    VkPhysicalDevice           physicalDevice;
-    VkDevice                   device;
+    VkPhysicalDevice             physicalDevice = VK_NULL_HANDLE;
+    VkDevice                     device         = VK_NULL_HANDLE;
 
-    VkQueue                    graphicsQueue;
-    VkQueue                    presentQueue;
+    VkQueue                      graphicsQueue;
+    VkQueue                      presentQueue;
 
-    VkSurfaceKHR               surface;
+    VkSurfaceKHR                 surface;
 
-    VkSwapchainKHR             swapchain;
-    std::vector<VkImage>       swapchainImages;
-    VkFormat                   swapchainImageFormat;
-    VkExtent2D                 swapchainExtent;
-    std::vector<VkImageView>   swapchainImageViews;
+    VkSwapchainKHR               swapchain;
+    std::vector<VkImage>         swapchainImages;
+    VkFormat                     swapchainImageFormat;
+    VkExtent2D                   swapchainExtent;
+    std::vector<VkImageView>     swapchainImageViews;
 
-    VkRenderPass               renderPass;
-    VkPipelineLayout           pipelineLayout;
-    VkPipeline                 graphicsPipeline;
+    VkRenderPass                 renderPass;
+    VkPipelineLayout             pipelineLayout;
+    VkPipeline                   graphicsPipeline;
 
-    std::vector<VkFramebuffer> swapchainFramebuffers;
+    std::vector<VkFramebuffer>   swapchainFramebuffers;
 
-    VkCommandPool              commandPool;
-    VkCommandBuffer            commandBuffer;
+    VkCommandPool                commandPool;
+    std::vector<VkCommandBuffer> commandBuffers;
 
-    VkSemaphore                imageAvailableSemaphore;
-    VkSemaphore                renderFinishedSemaphore;
-    VkFence                    inFlightFence;
+    std::vector<VkSemaphore>     imageAvailableSemaphores;
+    std::vector<VkSemaphore>     renderFinishedSemaphores;
+    std::vector<VkFence>         inFlightFences;
+
+    uint32_t                     currentFrame = 0;
 
 
     //==================================Main Functions==================================
@@ -94,12 +100,15 @@ private:
     void createGraphicsPipeline();
     void createFramebuffers();
     void createCommandPool();
-    void createCommandBuffer();
+    void createCommandBuffers();
     void createSyncObjects();
+
+    void recreateSwapchain();
+    void cleanupSwapchain();
 
 
     //==================================Validation==================================
-    bool enableValidationLayers;
+    bool enableValidationLayers = false;
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

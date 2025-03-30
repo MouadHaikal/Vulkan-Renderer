@@ -65,7 +65,16 @@ void Logger::logResult(VkResult result, const std::string& operation, const logF
 void Logger::logValidation(const char* message) const{
     std::lock_guard<std::mutex> lock(logMutex);
 
-    std::cerr << "Validation layer: " << message << std::endl;
+    std::cerr << "[VALIDATION] " << message << std::endl;
+}
+
+void Logger::logDeviceInfo(VkPhysicalDevice device) const{
+    if (minLevel > Level::DEBUG) return;
+
+    VkPhysicalDeviceProperties deviceProperties;
+    vkGetPhysicalDeviceProperties(device, &deviceProperties);
+
+    LOG_DEBUG_S("Device picked: " << deviceProperties.deviceName);
 }
 
 const char* Logger::levelToString(Level level) const{

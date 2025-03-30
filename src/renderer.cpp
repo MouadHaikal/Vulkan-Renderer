@@ -19,11 +19,9 @@
 //==================================Main Functions==================================
 void Renderer::init(GLFWwindow * appWindow){
     window = appWindow;
-    
-    if (Logger::get().getMinLevel() <= Logger::Level::DEBUG) {
-        enableValidationLayers = true;
-    }
 
+    enableValidationLayers = Logger::get().getMinLevel() <= Logger::Level::DEBUG;
+    
     createVulkanInstance();
     setupDebugMessenger();
     createSurface();
@@ -35,37 +33,47 @@ void Renderer::init(GLFWwindow * appWindow){
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
-    createCommandBuffer();
+    createCommandBuffers();
     createSyncObjects();
 }
 
 void Renderer::drawFrame(){
-    vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
-    vkResetFences(device, 1, &inFlightFence);
+    vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+    VkResult result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
-    vkResetCommandBuffer(commandBuffer, 0);
-    recordCommandBuffer(commandBuffer, imageIndex);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        LOG_TRACE("Swapchain out of date - recreating swapchain");
+        recreateSwapchain();
+        return;
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        LOG_FATAL("Failed to acquire swapchain image");
+    }
+
+    // Only reset fence if work is getting submitted to avoid deadlocks
+    vkResetFences(device, 1, &inFlightFences[currentFrame]);
+
+    vkResetCommandBuffer(commandBuffers[currentFrame], 0);
+    recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType                  = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[]      = { imageAvailableSemaphore };
+    VkSemaphore waitSemaphores[]      = { imageAvailableSemaphores[currentFrame] };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     submitInfo.waitSemaphoreCount     = 1;
     submitInfo.pWaitSemaphores        = waitSemaphores;
     submitInfo.pWaitDstStageMask      = waitStages;
     submitInfo.commandBufferCount     = 1;
-    submitInfo.pCommandBuffers        = &commandBuffer;
+    submitInfo.pCommandBuffers        = &commandBuffers[currentFrame];
 
-    VkSemaphore signalSemaphores[]    = { renderFinishedSemaphore };
+    VkSemaphore signalSemaphores[]    = { renderFinishedSemaphores[currentFrame] };
     submitInfo.signalSemaphoreCount   = 1;
     submitInfo.pSignalSemaphores      = signalSemaphores;
 
     LOG_RESULT_SILENT(
-        vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence),
+        vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]),
         "submit draw command buffer"
     );
 
@@ -79,7 +87,17 @@ void Renderer::drawFrame(){
     presentInfo.pSwapchains        = swapchains;
     presentInfo.pImageIndices      = &imageIndex;
 
-    vkQueuePresentKHR(presentQueue, &presentInfo);
+    result = vkQueuePresentKHR(presentQueue, &presentInfo);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
+        LOG_TRACE("Swapchain out of date (or suboptimal) - recreating swapchain");
+        framebufferResized = false;
+        recreateSwapchain();
+    } else if (result != VK_SUCCESS) {
+        LOG_FATAL("Failed to present swapchain image");
+    }
+
+    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void Renderer::deviceWait(){
@@ -87,25 +105,21 @@ void Renderer::deviceWait(){
 }
 
 void Renderer::cleanup(){ 
-    vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);
-    vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
-    vkDestroyFence(device, inFlightFence, nullptr);
-
-    vkDestroyCommandPool(device, commandPool, nullptr);
-
-    for (auto framebuffer : swapchainFramebuffers) {
-        vkDestroyFramebuffer(device, framebuffer, nullptr);
-    }
+    cleanupSwapchain();
 
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+
     vkDestroyRenderPass(device, renderPass, nullptr);
 
-    for (auto imageView : swapchainImageViews) {
-        vkDestroyImageView(device, imageView, nullptr); 
+    for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
+        vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
+        vkDestroyFence(device, inFlightFences[i], nullptr);
     }
 
-    vkDestroySwapchainKHR(device, swapchain, nullptr);
+    vkDestroyCommandPool(device, commandPool, nullptr);
+
     vkDestroyDevice(device, nullptr);
 
     if (enableValidationLayers) {
@@ -133,7 +147,7 @@ void Renderer::createVulkanInstance(){
     std::vector<const char*> extensions = getRequiredExtensions();
 
     if (!checkInstanceExtensionSupport(extensions)){
-        LOG_FATAL("Vulkan instance extensions not supported!");
+        LOG_FATAL("Vulkan instance extensions not supported");
     }
 
     createInfo.enabledExtensionCount   = static_cast<uint32_t>(extensions.size());
@@ -194,6 +208,8 @@ void Renderer::pickPhysicalDevice(){
 
     if (candidates.rbegin()->first > 0) {
         physicalDevice = candidates.rbegin()->second;
+        LOG_RESULT(VK_SUCCESS, "pick physical device");
+        LOG_DEVICE_INFO(physicalDevice);
     } else {
         LOG_FATAL("Failed to find suitable GPU");
     }
@@ -561,20 +577,26 @@ void Renderer::createCommandPool(){
     );
 }
 
-void Renderer::createCommandBuffer(){
+void Renderer::createCommandBuffers(){
+    commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool        = commandPool;
     allocInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = 1;
+    allocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
 
     LOG_RESULT(
-        vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer),
-        "allocate command buffer"
+        vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()),
+        "allocate command buffers"
     );
 }
 
 void Renderer::createSyncObjects(){
+    imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
@@ -582,18 +604,43 @@ void Renderer::createSyncObjects(){
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    LOG_RESULT(
-        vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore),
-        "create sync objects (imageAvailableSemaphore)"
-    );
-    LOG_RESULT(
-        vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore),
-        "create sync objects (renderFinishedSemaphore)"
-    );
-    LOG_RESULT(
-        vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence),
-        "create sync objects (inFlightFence)"
-    );
+    for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        LOG_RESULT(
+            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]),
+            "create sync object: imageAvailableSemaphore " + std::to_string(i)
+        );
+        LOG_RESULT(
+            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]),
+            "create sync object: renderFinishedSemaphore " + std::to_string(i)
+        );
+        LOG_RESULT(
+            vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]),
+            "create sync object: inFlightFence " + std::to_string(i)
+        );
+    }
+}
+
+
+void Renderer::recreateSwapchain(){
+    vkDeviceWaitIdle(device);
+
+    cleanupSwapchain();
+
+    createSwapchain();
+    createImageViews();
+    createFramebuffers();
+}
+
+void Renderer::cleanupSwapchain(){
+    for (size_t i=0; i < swapchainFramebuffers.size(); ++i) {
+        vkDestroyFramebuffer(device, swapchainFramebuffers[i], nullptr);
+    }
+
+    for (size_t i=0; i < swapchainImageViews.size(); ++i) {
+        vkDestroyImageView(device, swapchainImageViews[i], nullptr); 
+    }
+
+    vkDestroySwapchainKHR(device, swapchain, nullptr);
 }
 
 

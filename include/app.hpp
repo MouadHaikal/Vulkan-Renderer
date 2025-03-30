@@ -23,4 +23,5 @@ private:
     
     // Helper Functions
     void initWindow(const char* title);
+    static void framebufferResizeCallback(GLFWwindow * window, int width, int height);
 };

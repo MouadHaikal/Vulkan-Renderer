@@ -3,6 +3,7 @@
 #include <cmath>
 #include <mutex>
 #include <string>
+#include <sstream>    // Indirectly used in macros
 #include <vulkan/vulkan_core.h>
 
 
@@ -36,6 +37,7 @@ public:
     void log(Level level, const std::string& message) const;
     void logResult(VkResult result, const std::string& operation, const logFlags& flags) const;
     void logValidation(const char* message) const;
+    void logDeviceInfo(VkPhysicalDevice device) const;
 
 
     Logger(const Logger&)            = delete;
@@ -71,6 +73,8 @@ private:
 #define LOG_RESULT(result, operation)        Logger::get().logResult(result, operation, Logger::logFlags(true , Logger::Level::FATAL))
 #define LOG_RESULT_SILENT(result, operation) Logger::get().logResult(result, operation, Logger::logFlags(false, Logger::Level::FATAL))
 #define LOG_RESULT_OPT(result, operation)    Logger::get().logResult(result, operation, Logger::logFlags(true , Logger::Level::ERROR))
+
+#define LOG_DEVICE_INFO(device) Logger::get().logDeviceInfo(device);
 
 #define LOG_TRACE_S(stream) \
     do { \
