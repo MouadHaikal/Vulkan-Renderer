@@ -7,40 +7,36 @@
 #include <cstdint>
 #include <fstream>
 #include <ios>
-#include <iostream>
 #include <limits>
 #include <set>
 #include <string>
 #include <utility>
 #include <cstring>
-#include <stdexcept>
 #include <map>
 #include <vector>
 
 
 //==================================Main Functions==================================
-int Renderer::init(GLFWwindow * appWindow){
+void Renderer::init(GLFWwindow * appWindow){
     window = appWindow;
-    try {
-        createVulkanInstance();
-        setupDebugMessenger();
-        createSurface();
-        pickPhysicalDevice();
-        createLogicalDevice();
-        createSwapchain();
-        createImageViews();
-        createRenderPass();
-        createGraphicsPipeline();
-        createFramebuffers();
-        createCommandPool();
-        createCommandBuffer();
-        createSyncObjects();
-    } catch (std::runtime_error &e) {
-        std::cerr << e.what() << std::endl;
-        return EXIT_FAILURE;
+    
+    if (Logger::get().getMinLevel() <= Logger::Level::DEBUG) {
+        enableValidationLayers = true;
     }
 
-    return EXIT_SUCCESS;
+    createVulkanInstance();
+    setupDebugMessenger();
+    createSurface();
+    pickPhysicalDevice();
+    createLogicalDevice();
+    createSwapchain();
+    createImageViews();
+    createRenderPass();
+    createGraphicsPipeline();
+    createFramebuffers();
+    createCommandPool();
+    createCommandBuffer();
+    createSyncObjects();
 }
 
 void Renderer::drawFrame(){
@@ -68,9 +64,10 @@ void Renderer::drawFrame(){
     submitInfo.signalSemaphoreCount   = 1;
     submitInfo.pSignalSemaphores      = signalSemaphores;
 
-    if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to submit draw command buffer!");
-    }
+    LOG_RESULT_SILENT(
+        vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence),
+        "submit draw command buffer"
+    );
 
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -136,7 +133,7 @@ void Renderer::createVulkanInstance(){
     std::vector<const char*> extensions = getRequiredExtensions();
 
     if (!checkInstanceExtensionSupport(extensions)){
-        throw std::runtime_error("Vulkan instance extensions not supported!");
+        LOG_FATAL("Vulkan instance extensions not supported!");
     }
 
     createInfo.enabledExtensionCount   = static_cast<uint32_t>(extensions.size());
@@ -145,15 +142,17 @@ void Renderer::createVulkanInstance(){
     // Validation Layers
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     if (enableValidationLayers){
-        if (!checkValidationLayerSupport()){
-            throw std::runtime_error("DEBUG: Validation layers not supported!");
+        if (checkValidationLayerSupport()){
+            createInfo.enabledLayerCount       = static_cast<uint32_t>(validationLayers.size());
+            createInfo.ppEnabledLayerNames     = validationLayers.data();
+
+            populateDebugMessengerCreateInfo(debugCreateInfo);
+            createInfo.pNext                   = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
         } 
-
-        createInfo.enabledLayerCount       = static_cast<uint32_t>(validationLayers.size());
-        createInfo.ppEnabledLayerNames     = validationLayers.data();
-
-        populateDebugMessengerCreateInfo(debugCreateInfo);
-        createInfo.pNext                   = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
+        else {
+            LOG_DEBUG("Validation layers enabled but not supported - disabling validation layers");
+            enableValidationLayers = false;
+        } 
 
     } else {
         createInfo.enabledLayerCount       = 0;
@@ -162,15 +161,17 @@ void Renderer::createVulkanInstance(){
     }
 
 
-    if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS){
-        throw std::runtime_error("Failed to create Vulkan instance!");
-    }
+    LOG_RESULT(
+        vkCreateInstance(&createInfo, nullptr, &instance),
+        "create Vulkan instance"
+    );
 }
 
 void Renderer::createSurface(){
-    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create window surface!");
-    }
+    LOG_RESULT(
+        glfwCreateWindowSurface(instance, window, nullptr, &surface),
+        "create window surface"
+    );
 }
 
 void Renderer::pickPhysicalDevice(){
@@ -178,7 +179,7 @@ void Renderer::pickPhysicalDevice(){
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
     if (!deviceCount){
-        throw std::runtime_error("Failed to find a GPU with Vulkan support!");
+        LOG_FATAL("Failed to find GPU with Vulkan support");
     }
 
     std::vector<VkPhysicalDevice> devices(deviceCount);
@@ -194,7 +195,7 @@ void Renderer::pickPhysicalDevice(){
     if (candidates.rbegin()->first > 0) {
         physicalDevice = candidates.rbegin()->second;
     } else {
-        throw std::runtime_error("Failed to find suitable GPU!");
+        LOG_FATAL("Failed to find suitable GPU");
     }
 }
 
@@ -244,9 +245,10 @@ void Renderer::createLogicalDevice(){
         createInfo.ppEnabledLayerNames     = nullptr;
     }
 
-    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create logical device!");
-    }
+    LOG_RESULT(
+        vkCreateDevice(physicalDevice, &createInfo, nullptr, &device),
+        "create logical device"
+    );
 
     vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
@@ -295,9 +297,10 @@ void Renderer::createSwapchain(){
     createInfo.clipped               = VK_TRUE;
     createInfo.oldSwapchain          = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapchain) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create swapchain!");
-    }
+    LOG_RESULT(
+        vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapchain),
+        "create swapchain"
+    );
 
     vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
     swapchainImages.resize(imageCount);
@@ -329,9 +332,10 @@ void Renderer::createImageViews(){
         createInfo.subresourceRange.baseArrayLayer = 0;
         createInfo.subresourceRange.layerCount     = 1;
 
-        if (vkCreateImageView(device, &createInfo, nullptr, &swapchainImageViews[i]) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create image views!");
-        }
+        LOG_RESULT(
+            vkCreateImageView(device, &createInfo, nullptr, &swapchainImageViews[i]),
+            "create image view " + std::to_string(i)
+        );
     }
 }
 
@@ -373,9 +377,10 @@ void Renderer::createRenderPass(){
     renderPassInfo.pDependencies   = &dependency;
 
 
-    if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create render pass!");
-    }
+    LOG_RESULT(
+        vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass),
+        "create render pass"
+    );
 }
 
 void Renderer::createGraphicsPipeline(){
@@ -482,9 +487,10 @@ void Renderer::createGraphicsPipeline(){
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 
-    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create pipeline layout!");
-    }
+    LOG_RESULT(
+        vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout),
+        "create pipeline layout"
+    );
 
 
     // Pipeline Creation --------------------------------
@@ -506,9 +512,10 @@ void Renderer::createGraphicsPipeline(){
     pipelineInfo.renderPass          = renderPass;
     pipelineInfo.subpass             = 0;
 
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create graphics pipeline!");
-    }
+    LOG_RESULT(
+        vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline),
+        "create graphics pipeline"
+    );
 
 
     // Cleanup --------------------------------
@@ -533,9 +540,10 @@ void Renderer::createFramebuffers(){
         createInfo.height          = swapchainExtent.height;
         createInfo.layers          = 1;
 
-        if (vkCreateFramebuffer(device, &createInfo, nullptr, &swapchainFramebuffers[i]) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create framebuffers!");
-        }
+        LOG_RESULT(
+            vkCreateFramebuffer(device, &createInfo, nullptr, &swapchainFramebuffers[i]),
+            "create framebuffer " + std::to_string(i)
+        );
     }
 }
 
@@ -547,9 +555,10 @@ void Renderer::createCommandPool(){
     createInfo.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     createInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 
-    if (vkCreateCommandPool(device, &createInfo, nullptr, &commandPool) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create command pool!");
-    }
+    LOG_RESULT(
+        vkCreateCommandPool(device, &createInfo, nullptr, &commandPool),
+        "create command pool"
+    );
 }
 
 void Renderer::createCommandBuffer(){
@@ -559,9 +568,10 @@ void Renderer::createCommandBuffer(){
     allocInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
 
-    if (vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to allocate command buffers!");
-    }
+    LOG_RESULT(
+        vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer),
+        "allocate command buffer"
+    );
 }
 
 void Renderer::createSyncObjects(){
@@ -572,12 +582,18 @@ void Renderer::createSyncObjects(){
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore) != VK_SUCCESS ||
-        vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore) != VK_SUCCESS ||
-        vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to create sync objects!");
-    }
+    LOG_RESULT(
+        vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore),
+        "create sync objects (imageAvailableSemaphore)"
+    );
+    LOG_RESULT(
+        vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore),
+        "create sync objects (renderFinishedSemaphore)"
+    );
+    LOG_RESULT(
+        vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence),
+        "create sync objects (inFlightFence)"
+    );
 }
 
 
@@ -588,7 +604,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Renderer::debugCallback(
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData
 ){
-    std::cerr << "Validation layer: " << pCallbackData->pMessage << std::endl;
+    LOG_VALIDATION(pCallbackData->pMessage);
 
     return VK_FALSE;
 }
@@ -626,9 +642,10 @@ void Renderer::setupDebugMessenger(){
     VkDebugUtilsMessengerCreateInfoEXT createInfo{};
     populateDebugMessengerCreateInfo(createInfo);
 
-    if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS){
-        throw std::runtime_error("Failed to set up debug messenger!");
-    }
+    LOG_RESULT(
+        CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger),
+        "set up debug messenger"
+    );
 }
 
 
@@ -860,7 +877,7 @@ std::vector<char> Renderer::readFile(const std::string &fileName){
     std::ifstream file(fileName, std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) {
-        throw std::runtime_error("Failed to open file!");
+        LOG_FATAL("Failed to open file");
     }
 
     size_t fileSize = (size_t) file.tellg();
@@ -883,9 +900,10 @@ VkShaderModule Renderer::createShaderModule(const std::vector<char> &code){
     createInfo.codeSize = code.size();
     createInfo.pCode    = reinterpret_cast<const uint32_t*>(code.data());
 
-    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create shader module!");
-    }
+    LOG_RESULT(
+        vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule),
+        "create shader module"
+    );
 
     return shaderModule;
 }
@@ -894,9 +912,10 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to begin recording command buffer!");
-    }
+    LOG_RESULT_SILENT(
+        vkBeginCommandBuffer(commandBuffer, &beginInfo),
+        "begin recording command buffer"
+    );
 
 
     VkRenderPassBeginInfo renderPassInfo{};
@@ -937,7 +956,8 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
     vkCmdEndRenderPass(commandBuffer);
 
 
-    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to record command buffer!");
-    }
+    LOG_RESULT_SILENT(
+        vkEndCommandBuffer(commandBuffer),
+        "record command buffer"
+    );
 }

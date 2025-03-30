@@ -20,12 +20,6 @@ const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-#ifdef NDEBUG
-    const bool enableValidationLayers = false;
-#else
-    const bool enableValidationLayers = true;
-#endif
-
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
@@ -44,9 +38,9 @@ struct SwapchainSupportDetails {
 
 class Renderer {
 public:
-    Renderer() : physicalDevice(VK_NULL_HANDLE), device(VK_NULL_HANDLE) {};
+    Renderer() : physicalDevice(VK_NULL_HANDLE), device(VK_NULL_HANDLE), enableValidationLayers(false) {};
 
-    int init(GLFWwindow * appWindow);
+    void init(GLFWwindow * appWindow);
 
     void drawFrame();
 
@@ -105,6 +99,8 @@ private:
 
 
     //==================================Validation==================================
+    bool enableValidationLayers;
+
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,

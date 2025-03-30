@@ -1,8 +1,7 @@
 #include "app.hpp"
 #include "logger.hpp"
 
-#include <cstdlib>
-#include <iostream>
+#include <sstream>    // Indirectly used in LOG_INFO_S()
 
 // Main Functions
 void App::run(){
@@ -14,14 +13,13 @@ void App::run(){
 }
 
 void App::init(){
-    Logger::get().setMinLevel(Logger::Level::DEBUG);
-
     glfwInit();
+
+    Logger::get().setMinLevel(Logger::Level::TRACE);
+
     initWindow("VulkanApp");
 
-    if (renderer.init(window) != EXIT_SUCCESS) {
-        throw std::runtime_error("Failed to initialize renderer!");
-    }
+    renderer.init(window);
 }
 
 void App::mainLoop(){
@@ -35,6 +33,8 @@ void App::mainLoop(){
 
 void App::cleanup(){
     renderer.cleanup();
+
+    Logger::get().destroy();
 
     glfwDestroyWindow(window);
     glfwTerminate();
@@ -51,9 +51,9 @@ void App::initWindow(const char* title){
     
     if (monitor){
         glfwGetMonitorContentScale(monitor, &xScale, &yScale);
-        std::cout << "Accounting for monitor scale: " << xScale << "x" << yScale << std::endl;
+        LOG_INFO_S("Accounting for monitor scale: " << xScale << "x" << yScale);
     } else {
-        std::cerr << "Failed to get primary monitor! Ignoring monitor scale!" << std::endl;
+        LOG_ERROR("Failed to get primary monitor! Ignoring monitor scale!");
         xScale = 1.0f;
         yScale = 1.0f;
     }
