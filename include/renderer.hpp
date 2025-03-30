@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -51,6 +50,8 @@ public:
 
     void drawFrame();
 
+    void deviceWait();
+
     void cleanup();
 
 private:
@@ -83,6 +84,10 @@ private:
     VkCommandPool              commandPool;
     VkCommandBuffer            commandBuffer;
 
+    VkSemaphore                imageAvailableSemaphore;
+    VkSemaphore                renderFinishedSemaphore;
+    VkFence                    inFlightFence;
+
 
     //==================================Main Functions==================================
     void createVulkanInstance();
@@ -96,6 +101,7 @@ private:
     void createFramebuffers();
     void createCommandPool();
     void createCommandBuffer();
+    void createSyncObjects();
 
 
     //==================================Validation==================================
