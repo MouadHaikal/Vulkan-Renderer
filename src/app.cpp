@@ -1,7 +1,5 @@
 #include "app.hpp"
 #include "logger.hpp"
-#include "renderer.hpp"
-#include <GLFW/glfw3.h>
 
 
 // Main Functions
