@@ -14,7 +14,7 @@ void App::run(){
 void App::init(){
     glfwInit();
 
-    Logger::get().setMinLevel(Logger::Level::DEBUG);
+    Logger::get().setMinLevel(Logger::Level::TRACE);
 
     initWindow("VulkanApp");
 
@@ -44,19 +44,7 @@ void App::cleanup(){
 void App::initWindow(const char* title){
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-    float xScale, yScale;
-    
-    if (monitor){
-        glfwGetMonitorContentScale(monitor, &xScale, &yScale);
-        LOG_INFO_S("Accounting for monitor scale: " << xScale << "x" << yScale);
-    } else {
-        LOG_ERROR("Failed to get primary monitor! Ignoring monitor scale!");
-        xScale = 1.0f;
-        yScale = 1.0f;
-    }
-
-    window = glfwCreateWindow(WIDTH/xScale, HEIGHT/yScale, title, nullptr, nullptr);
+    window = glfwCreateWindow(WIDTH, HEIGHT, title, nullptr, nullptr);
 
     glfwSetWindowUserPointer(window, &renderer);
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);

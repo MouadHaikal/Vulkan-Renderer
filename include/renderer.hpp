@@ -27,10 +27,12 @@ const int MAX_FRAMES_IN_FLIGHT = 2;
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
+    std::optional<uint32_t> transferFamily;
 
     bool isComplete(){
         return graphicsFamily.has_value() &&
-               presentFamily.has_value();
+               presentFamily.has_value() &&
+               transferFamily.has_value();
     }
 };
 
@@ -75,6 +77,7 @@ private:
 
     VkQueue                      graphicsQueue;
     VkQueue                      presentQueue;
+    VkQueue                      transferQueue;
 
     VkSurfaceKHR                 surface;
 
@@ -93,8 +96,10 @@ private:
     VkBuffer                     vertexBuffer;
     VkDeviceMemory               vertexBufferMemory;
 
-    VkCommandPool                commandPool;
-    std::vector<VkCommandBuffer> commandBuffers;
+    VkCommandPool                graphicsCommandPool;
+    VkCommandPool                transferCommandPool;
+
+    std::vector<VkCommandBuffer> graphicsCommandBuffers;
 
     std::vector<VkSemaphore>     imageAvailableSemaphores;
     std::vector<VkSemaphore>     renderFinishedSemaphores;
@@ -113,9 +118,9 @@ private:
     void createRenderPass();
     void createGraphicsPipeline();
     void createFramebuffers();
-    void createCommandPool();
+    void createCommandPools();
     void createVertexBuffer();
-    void createCommandBuffers();
+    void createGraphicsCommandBuffers();
     void createSyncObjects();
 
     void recreateSwapchain();

@@ -1,12 +1,13 @@
 #include "logger.hpp"
 
+#include <cctype>
 #include <cstdlib>
 #include <iostream>
 #include <string>
 
 #define ICON_SUCCESS "\033[32m\u2713\033[0m "
 #define ICON_WARNING "\033[33m\u26A0\033[0m "
-#define ICON_FAILURE "\033[31m\u274C\033[0m "
+#define ICON_FAILURE "\033[31m\u274C\033[0m"
 
 // Innitialize static members
 Logger*    Logger::instance = nullptr;
@@ -46,6 +47,7 @@ void Logger::log(Level level, const std::string& message) const{
     stream << "[" << levelToString(level) << "] " << message << std::endl;
 
     if (level == Level::FATAL) {
+        stream << "Aborting" << std::endl;
         std::abort();    
     }
 }
@@ -58,7 +60,7 @@ void Logger::logResult(VkResult result, const std::string& operation, const logF
 
     } else{
         std::string icon = (flags.failureLevel >= Level::ERROR) ? ICON_FAILURE : ICON_WARNING;
-        log(flags.failureLevel, icon + "failed to " + operation);
+        log(flags.failureLevel, icon + "Failed to " + std::string(1, static_cast<char>(tolower(operation[0]))) + operation.substr(1));
     }
 }
 

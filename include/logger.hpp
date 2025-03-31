@@ -45,7 +45,6 @@ public:
     Logger(Logger&&)                 = delete;
     Logger& operator=(Logger&&)      = delete;
 
-
 private:
     Logger()  = default;
     ~Logger() = default;

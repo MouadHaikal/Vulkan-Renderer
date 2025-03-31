@@ -65,9 +65,9 @@ void Renderer::init(GLFWwindow * appWindow){
     createRenderPass();
     createGraphicsPipeline();
     createFramebuffers();
-    createCommandPool();
+    createCommandPools();
     createVertexBuffer();
-    createCommandBuffers();
+    createGraphicsCommandBuffers();
     createSyncObjects();
 }
 
@@ -88,8 +88,8 @@ void Renderer::drawFrame(){
     // Only reset fence if work is getting submitted to avoid deadlocks
     vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
-    vkResetCommandBuffer(commandBuffers[currentFrame], 0);
-    recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
+    vkResetCommandBuffer(graphicsCommandBuffers[currentFrame], 0);
+    recordCommandBuffer(graphicsCommandBuffers[currentFrame], imageIndex);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType                  = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -100,7 +100,7 @@ void Renderer::drawFrame(){
     submitInfo.pWaitSemaphores        = waitSemaphores;
     submitInfo.pWaitDstStageMask      = waitStages;
     submitInfo.commandBufferCount     = 1;
-    submitInfo.pCommandBuffers        = &commandBuffers[currentFrame];
+    submitInfo.pCommandBuffers        = &graphicsCommandBuffers[currentFrame];
 
     VkSemaphore signalSemaphores[]    = { renderFinishedSemaphores[currentFrame] };
     submitInfo.signalSemaphoreCount   = 1;
@@ -108,7 +108,7 @@ void Renderer::drawFrame(){
 
     LOG_RESULT_SILENT(
         vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]),
-        "submit draw command buffer"
+        "Submit draw command buffer"
     );
 
     VkPresentInfoKHR presentInfo{};
@@ -154,7 +154,8 @@ void Renderer::cleanup(){
         vkDestroyFence(device, inFlightFences[i], nullptr);
     }
 
-    vkDestroyCommandPool(device, commandPool, nullptr);
+    vkDestroyCommandPool(device, transferCommandPool, nullptr);
+    vkDestroyCommandPool(device, graphicsCommandPool, nullptr);
 
     vkDestroyDevice(device, nullptr);
 
@@ -213,14 +214,14 @@ void Renderer::createVulkanInstance(){
 
     LOG_RESULT(
         vkCreateInstance(&createInfo, nullptr, &instance),
-        "create Vulkan instance"
+        "Create Vulkan instance"
     );
 }
 
 void Renderer::createSurface(){
     LOG_RESULT(
         glfwCreateWindowSurface(instance, window, nullptr, &surface),
-        "create window surface"
+        "Create window surface"
     );
 }
 
@@ -244,7 +245,7 @@ void Renderer::pickPhysicalDevice(){
 
     if (candidates.rbegin()->first > 0) {
         physicalDevice = candidates.rbegin()->second;
-        LOG_RESULT(VK_SUCCESS, "pick physical device");
+        LOG_RESULT(VK_SUCCESS, "Pick physical device");
         LOG_DEVICE_INFO(physicalDevice);
     } else {
         LOG_FATAL("Failed to find suitable GPU");
@@ -257,7 +258,8 @@ void Renderer::createLogicalDevice(){
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
     std::set<uint32_t> uniqueQueueFamilies = {
         indices.graphicsFamily.value(),
-        indices.presentFamily.value()
+        indices.presentFamily.value(),
+        indices.transferFamily.value()
     };
 
     float queuePriority = 1.0f;
@@ -299,11 +301,12 @@ void Renderer::createLogicalDevice(){
 
     LOG_RESULT(
         vkCreateDevice(physicalDevice, &createInfo, nullptr, &device),
-        "create logical device"
+        "Create logical device"
     );
 
     vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
-    vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
+    vkGetDeviceQueue(device, indices.presentFamily.value() , 0, &presentQueue);
+    vkGetDeviceQueue(device, indices.transferFamily.value(), 0, &transferQueue);
 }
 
 void Renderer::createSwapchain(){
@@ -351,7 +354,7 @@ void Renderer::createSwapchain(){
 
     LOG_RESULT(
         vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapchain),
-        "create swapchain"
+        "Create swapchain"
     );
 
     vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
@@ -386,7 +389,7 @@ void Renderer::createImageViews(){
 
         LOG_RESULT(
             vkCreateImageView(device, &createInfo, nullptr, &swapchainImageViews[i]),
-            "create image view " + std::to_string(i)
+            "Create image view " + std::to_string(i)
         );
     }
 }
@@ -431,7 +434,7 @@ void Renderer::createRenderPass(){
 
     LOG_RESULT(
         vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass),
-        "create render pass"
+        "Create render pass"
     );
 }
 
@@ -544,7 +547,7 @@ void Renderer::createGraphicsPipeline(){
 
     LOG_RESULT(
         vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout),
-        "create pipeline layout"
+        "Create pipeline layout"
     );
 
 
@@ -569,7 +572,7 @@ void Renderer::createGraphicsPipeline(){
 
     LOG_RESULT(
         vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline),
-        "create graphics pipeline"
+        "Create graphics pipeline"
     );
 
 
@@ -597,23 +600,40 @@ void Renderer::createFramebuffers(){
 
         LOG_RESULT(
             vkCreateFramebuffer(device, &createInfo, nullptr, &swapchainFramebuffers[i]),
-            "create framebuffer " + std::to_string(i)
+            "Create framebuffer " + std::to_string(i)
         );
     }
 }
 
-void Renderer::createCommandPool(){
+void Renderer::createCommandPools(){
     QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
 
     VkCommandPoolCreateInfo createInfo{};
+
+    // Graphics command pool
     createInfo.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     createInfo.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     createInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 
     LOG_RESULT(
-        vkCreateCommandPool(device, &createInfo, nullptr, &commandPool),
-        "create command pool"
+        vkCreateCommandPool(device, &createInfo, nullptr, &graphicsCommandPool),
+        "Create graphics command pool"
     );
+
+
+    // Transfer command pool
+    if (queueFamilyIndices.transferFamily.value() == queueFamilyIndices.graphicsFamily.value()) {
+        transferCommandPool = graphicsCommandPool;
+        LOG_RESULT(VK_SUCCESS, "Copy graphics command pool into transfer command pool (same queue family)");
+    }
+    else {
+        createInfo.queueFamilyIndex = queueFamilyIndices.transferFamily.value();
+
+        LOG_RESULT(
+            vkCreateCommandPool(device, &createInfo, nullptr, &transferCommandPool),
+            "Create transfer command pool"
+        );
+    }
 }
 
 void Renderer::createVertexBuffer(){
@@ -625,7 +645,7 @@ void Renderer::createVertexBuffer(){
 
     LOG_RESULT(
         vkCreateBuffer(device, &createInfo, nullptr, &vertexBuffer),
-        "create vertex buffer"
+        "Create vertex buffer"
     );
 
 
@@ -641,7 +661,7 @@ void Renderer::createVertexBuffer(){
 
     LOG_RESULT(
         vkAllocateMemory(device, &allocInfo, nullptr, &vertexBufferMemory),
-        "allocate vertex buffer memory"
+        "Allocate vertex buffer memory"
     );
 
 
@@ -656,18 +676,18 @@ void Renderer::createVertexBuffer(){
     vkUnmapMemory(device, vertexBufferMemory);
 }
 
-void Renderer::createCommandBuffers(){
-    commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+void Renderer::createGraphicsCommandBuffers(){
+    graphicsCommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool        = commandPool;
+    allocInfo.commandPool        = graphicsCommandPool;
     allocInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
+    allocInfo.commandBufferCount = static_cast<uint32_t>(graphicsCommandBuffers.size());
 
     LOG_RESULT(
-        vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()),
-        "allocate command buffers"
+        vkAllocateCommandBuffers(device, &allocInfo, graphicsCommandBuffers.data()),
+        "Allocate graphics command buffers"
     );
 }
 
@@ -686,15 +706,15 @@ void Renderer::createSyncObjects(){
     for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         LOG_RESULT(
             vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]),
-            "create sync object: imageAvailableSemaphore " + std::to_string(i)
+            "Create sync object: imageAvailableSemaphore " + std::to_string(i)
         );
         LOG_RESULT(
             vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]),
-            "create sync object: renderFinishedSemaphore " + std::to_string(i)
+            "Create sync object: renderFinishedSemaphore " + std::to_string(i)
         );
         LOG_RESULT(
             vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]),
-            "create sync object: inFlightFence " + std::to_string(i)
+            "Create sync object: inFlightFence " + std::to_string(i)
         );
     }
 }
@@ -780,7 +800,7 @@ void Renderer::setupDebugMessenger(){
 
     LOG_RESULT(
         CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger),
-        "set up debug messenger"
+        "Set up debug messenger"
     );
 }
 
@@ -868,10 +888,14 @@ QueueFamilyIndices Renderer::findQueueFamilies(VkPhysicalDevice device){
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
-    int i=0;
+    int i = 0;
     for (const auto& queueFamily : queueFamilies) {
         if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             indices.graphicsFamily = i;
+        }
+        // Dedicated transfer queue family
+        else if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) {
+            indices.transferFamily = i;
         }
 
         VkBool32 presentSupport = false;
@@ -885,6 +909,12 @@ QueueFamilyIndices Renderer::findQueueFamilies(VkPhysicalDevice device){
 
         ++i;
     }
+
+    // Set the transfer family as the graphics family if failed to find dedicated transfer queue family
+    //  - Any queue with VK_QUEUE_GRAPHICS_BIT capabilities implicitly support VK_QUEUE_TRANSFER_BIT operations
+    if (!indices.transferFamily.has_value() && indices.graphicsFamily.has_value() ) {
+        indices.transferFamily = indices.graphicsFamily;
+    } 
 
     return indices;
 }
@@ -911,12 +941,15 @@ int Renderer::rateDeviceSuitability(VkPhysicalDevice device){
                     !swapchainDetails.formats.empty() &&
                     !swapchainDetails.presentModes.empty();
 
-    if (!required) return 0;
+    if (required) { score = 1; }
+    else { return 0; }
 
 
     // Secondary
+    //  - Discrete GPU
     score += (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)? 1000 : 0;
-    score += deviceProperties.limits.maxImageDimension2D;
+    //  - Dedicated transfer queue family
+    score += (indices.transferFamily.value() != indices.graphicsFamily.value())   ? 500  : 0;
 
     return score;
 }
@@ -1038,7 +1071,7 @@ VkShaderModule Renderer::createShaderModule(const std::vector<char> &code){
 
     LOG_RESULT(
         vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule),
-        "create shader module"
+        "Create shader module"
     );
 
     return shaderModule;
@@ -1050,7 +1083,7 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 
     LOG_RESULT_SILENT(
         vkBeginCommandBuffer(commandBuffer, &beginInfo),
-        "begin recording command buffer"
+        "Begin recording command buffer"
     );
 
 
@@ -1062,7 +1095,7 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = swapchainExtent;
 
-    VkClearValue clearColor          = {{{0.01f, 0.01f, 0.01, 1.0f}}};
+    VkClearValue clearColor          = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
     renderPassInfo.clearValueCount   = 1;
     renderPassInfo.pClearValues      = &clearColor;
 
@@ -1095,7 +1128,7 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 
     LOG_RESULT_SILENT(
         vkEndCommandBuffer(commandBuffer),
-        "record command buffer"
+        "Record command buffer"
     );
 }
 
