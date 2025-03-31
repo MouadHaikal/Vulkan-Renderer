@@ -96,6 +96,9 @@ private:
     VkBuffer                     vertexBuffer;
     VkDeviceMemory               vertexBufferMemory;
 
+    VkBuffer                     indexBuffer;
+    VkDeviceMemory               indexBufferMemory;
+
     VkCommandPool                graphicsCommandPool;
     VkCommandPool                transferCommandPool;
 
@@ -120,6 +123,7 @@ private:
     void createFramebuffers();
     void createCommandPools();
     void createVertexBuffer();
+    void createIndexBuffer();
     void createGraphicsCommandBuffers();
     void createSyncObjects();
 
