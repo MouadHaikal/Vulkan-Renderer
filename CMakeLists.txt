@@ -16,6 +16,9 @@ find_package(Vulkan REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLFW REQUIRED glfw3)
 
+# Find glm
+find_package(glm REQUIRED)
+
 # Include directories
 include_directories(include)
 
@@ -29,7 +32,11 @@ add_executable(VulkanApp ${SRC_FILES})
 target_include_directories(VulkanApp PRIVATE ${GLFW_INCLUDE_DIRS})
 
 # Link Libraries
-target_link_libraries(VulkanApp PRIVATE Vulkan::Vulkan ${GLFW_LIBRARIES})
+target_link_libraries(VulkanApp PRIVATE 
+    Vulkan::Vulkan 
+    ${GLFW_LIBRARIES} 
+    glm::glm
+)
 
 # Compiler flags
 target_compile_definitions(VulkanApp PRIVATE ${GLFW_CFLAGS_OTHER})

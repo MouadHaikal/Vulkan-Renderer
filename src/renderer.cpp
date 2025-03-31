@@ -2,6 +2,7 @@
 #include "logger.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -14,6 +15,38 @@
 #include <cstring>
 #include <map>
 #include <vector>
+
+// Vertex --------------------------------------------------------------------------
+std::vector<Vertex> vertices{
+    {{ 0.0f, -0.5f}, {0.8f , 0.15f, 0.6f}},
+    {{ 0.5f,  0.5f}, {0.15f, 0.2f , 0.9f}},
+    {{-0.5f,  0.5f}, {0.95f, 0.4f , 0.0f}}
+};
+
+VkVertexInputBindingDescription Vertex::getBindingDescription(){
+    VkVertexInputBindingDescription bindingDescription{};
+    bindingDescription.binding   = 0;
+    bindingDescription.stride    = sizeof(Vertex);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    return bindingDescription;
+}
+
+std::array<VkVertexInputAttributeDescription, 2> Vertex::getAttributeDescriptions(){
+    std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+
+    attributeDescriptions[0].location = 0;
+    attributeDescriptions[0].binding  = 0;
+    attributeDescriptions[0].format   = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[0].offset   = offsetof(Vertex, pos);
+
+    attributeDescriptions[1].location = 1;
+    attributeDescriptions[1].binding  = 0;
+    attributeDescriptions[1].format   = VK_FORMAT_R32G32B32_SFLOAT;
+    attributeDescriptions[1].offset   = offsetof(Vertex, color);
+
+    return attributeDescriptions;
+}
 
 
 //==================================Main Functions==================================
@@ -33,6 +66,7 @@ void Renderer::init(GLFWwindow * appWindow){
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
+    createVertexBuffer();
     createCommandBuffers();
     createSyncObjects();
 }
@@ -109,8 +143,10 @@ void Renderer::cleanup(){
 
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-
     vkDestroyRenderPass(device, renderPass, nullptr);
+
+    vkDestroyBuffer(device, vertexBuffer, nullptr);
+    vkFreeMemory(device, vertexBufferMemory, nullptr);
 
     for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
@@ -428,13 +464,16 @@ void Renderer::createGraphicsPipeline(){
 
 
     // Vertex Input --------------------------------
-    // (Vertex data is hard coded directly in the vertex shader for now)
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount   = 0;
-    vertexInputInfo.pVertexBindingDescriptions      = nullptr;
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputInfo.pVertexAttributeDescriptions    = nullptr;
+
+    auto bindingDescription    = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
+    vertexInputInfo.vertexBindingDescriptionCount   = 1;
+    vertexInputInfo.pVertexBindingDescriptions      = &bindingDescription;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexAttributeDescriptions    = attributeDescriptions.data();
 
 
     // Input Assembly --------------------------------
@@ -575,6 +614,46 @@ void Renderer::createCommandPool(){
         vkCreateCommandPool(device, &createInfo, nullptr, &commandPool),
         "create command pool"
     );
+}
+
+void Renderer::createVertexBuffer(){
+    VkBufferCreateInfo createInfo{};
+    createInfo.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    createInfo.size        = sizeof(vertices[0]) * vertices.size();
+    createInfo.usage       = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    LOG_RESULT(
+        vkCreateBuffer(device, &createInfo, nullptr, &vertexBuffer),
+        "create vertex buffer"
+    );
+
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(device, vertexBuffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType =   VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits,
+                                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    LOG_RESULT(
+        vkAllocateMemory(device, &allocInfo, nullptr, &vertexBufferMemory),
+        "allocate vertex buffer memory"
+    );
+
+
+    vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
+
+
+    void* data;
+    vkMapMemory(device, vertexBufferMemory, 0, createInfo.size, 0, &data);
+    
+    memcpy(data, vertices.data(), static_cast<size_t>(createInfo.size));
+
+    vkUnmapMemory(device, vertexBufferMemory);
 }
 
 void Renderer::createCommandBuffers(){
@@ -983,32 +1062,33 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = swapchainExtent;
 
-    VkClearValue clearColor          = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    VkClearValue clearColor          = {{{0.01f, 0.01f, 0.01, 1.0f}}};
     renderPassInfo.clearValueCount   = 1;
     renderPassInfo.pClearValues      = &clearColor;
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+        VkViewport viewport{};
+        viewport.x        = 0.0f;
+        viewport.y        = 0.0f;
+        viewport.width    = static_cast<float_t>(swapchainExtent.width);
+        viewport.height   = static_cast<float_t>(swapchainExtent.height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
-    VkViewport viewport{};
-    viewport.x        = 0.0f;
-    viewport.y        = 0.0f;
-    viewport.width    = static_cast<float_t>(swapchainExtent.width);
-    viewport.height   = static_cast<float_t>(swapchainExtent.height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+        VkRect2D scissor{};
+        scissor.offset    = {0, 0};
+        scissor.extent    = swapchainExtent;
+        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    VkRect2D scissor{};
-    scissor.offset    = {0, 0};
-    scissor.extent    = swapchainExtent;
-    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+        VkBuffer vertexBuffers[] = { vertexBuffer };
+        VkDeviceSize offsets[]   = { 0 };
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-
+        vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -1017,4 +1097,20 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
         vkEndCommandBuffer(commandBuffer),
         "record command buffer"
     );
+}
+
+uint32_t Renderer::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties){
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+    for (uint32_t i=0; i < memProperties.memoryTypeCount; ++i) {
+        if ((typeFilter & (1 << i)) &&
+            (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            return i;
+        }
+    }
+
+    LOG_FATAL("Failed to find suitable memory type");
+    abort();      // Already called in LOG_FATAL();
 }

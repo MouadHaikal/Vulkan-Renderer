@@ -2,9 +2,11 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 
 #include <string>
 #include <cstdint>
+#include <array>
 #include <vector>
 #include <optional>
 
@@ -37,6 +39,16 @@ struct SwapchainSupportDetails {
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> presentModes;
 };
+
+
+struct Vertex {
+    glm::vec2 pos;
+    glm::vec3 color;
+
+    static VkVertexInputBindingDescription                  getBindingDescription();
+    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions();
+};
+
 
 class Renderer {
 public:
@@ -78,6 +90,9 @@ private:
 
     std::vector<VkFramebuffer>   swapchainFramebuffers;
 
+    VkBuffer                     vertexBuffer;
+    VkDeviceMemory               vertexBufferMemory;
+
     VkCommandPool                commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
 
@@ -99,6 +114,7 @@ private:
     void createGraphicsPipeline();
     void createFramebuffers();
     void createCommandPool();
+    void createVertexBuffer();
     void createCommandBuffers();
     void createSyncObjects();
 
@@ -150,4 +166,6 @@ private:
     VkShaderModule createShaderModule(const std::vector<char> &code);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 };

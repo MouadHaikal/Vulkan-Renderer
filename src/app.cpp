@@ -42,7 +42,6 @@ void App::cleanup(){
 
 // Helper Functions
 void App::initWindow(const char* title){
-    // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
