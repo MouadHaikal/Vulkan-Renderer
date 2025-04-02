@@ -12,9 +12,9 @@ void App::run(){
 }
 
 void App::init(){
-    glfwInit();
-
     Logger::get().setMinLevel(Logger::Level::TRACE);
+
+    glfwInit();
 
     initWindow("VulkanApp");
 
@@ -22,6 +22,8 @@ void App::init(){
 }
 
 void App::mainLoop(){
+    LOG_DEBUG("Entering main loop");
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         renderer.drawFrame();
@@ -33,10 +35,11 @@ void App::mainLoop(){
 void App::cleanup(){
     renderer.cleanup();
 
-    Logger::get().destroy();
-
     glfwDestroyWindow(window);
+
     glfwTerminate();
+
+    Logger::get().destroy();
 }
 
 

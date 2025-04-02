@@ -1,9 +1,11 @@
 #include "logger.hpp"
+#include "utilities.hpp"
 
 #include <cctype>
 #include <cstdlib>
-#include <iostream>
 #include <string>
+#include <iostream>
+#include <vulkan/vulkan_core.h>
 
 #define ICON_SUCCESS "\033[32m\u2713\033[0m "
 #define ICON_WARNING "\033[33m\u26A0\033[0m "
@@ -64,19 +66,39 @@ void Logger::logResult(VkResult result, const std::string& operation, const logF
     }
 }
 
-void Logger::logValidation(const char* message) const{
-    std::lock_guard<std::mutex> lock(logMutex);
-
-    std::cerr << "[VALIDATION] " << message << std::endl;
-}
-
-void Logger::logDeviceInfo(VkPhysicalDevice device) const{
-    if (minLevel > Level::DEBUG) return;
+void Logger::logDeviceInfo(VkPhysicalDevice device, QueueFamilyIndices queueFamilies) const{
+    if (minLevel > Level::INFO) return;
 
     VkPhysicalDeviceProperties deviceProperties;
     vkGetPhysicalDeviceProperties(device, &deviceProperties);
 
-    LOG_DEBUG_S("Device picked: " << deviceProperties.deviceName);
+    LOG_INFO("================== Device Info ==================");
+
+    LOG_INFO_S("- Name : " << deviceProperties.deviceName);
+    switch (deviceProperties.deviceType) {
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+            LOG_INFO("- Type : Integrated GPU");
+            break;
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+            LOG_INFO("- Type : Discrete GPU");
+            break;
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+            LOG_INFO("- Type : Virtual GPU");
+            break;
+        case VK_PHYSICAL_DEVICE_TYPE_CPU:
+            LOG_INFO("- Type : CPU");
+            break;
+        case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+            LOG_INFO("- Type : Other");
+            break;
+        default: ;
+    }
+    LOG_DEBUG("- Queue family indices :");
+        LOG_DEBUG_S("\tGraphics : " << queueFamilies.graphicsFamily.value());
+        LOG_DEBUG_S("\tPresent  : " << queueFamilies.presentFamily.value());
+        LOG_DEBUG_S("\tTransfer : " << queueFamilies.transferFamily.value());
+
+    LOG_INFO("=================================================");
 }
 
 const char* Logger::levelToString(Level level) const{

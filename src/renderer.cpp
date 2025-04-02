@@ -16,7 +16,7 @@
 #include <map>
 #include <vector>
 
-// Vertex --------------------------------------------------------------------------
+
 std::vector<Vertex> vertices{
     {{-0.5f, -0.5f}, {0.8f , 0.15f, 0.6f}},
     {{ 0.5f, -0.5f}, {0.15f, 0.2f , 0.9f}},
@@ -24,39 +24,17 @@ std::vector<Vertex> vertices{
     {{-0.5f,  0.5f}, {0.5f , 0.8f , 0.1f}}
 };
 
-const std::vector<uint16_t> indices{ 0, 1, 2, 2, 3, 0 };
-
-VkVertexInputBindingDescription Vertex::getBindingDescription(){
-    VkVertexInputBindingDescription bindingDescription{};
-    bindingDescription.binding   = 0;
-    bindingDescription.stride    = sizeof(Vertex);
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    return bindingDescription;
-}
-
-std::array<VkVertexInputAttributeDescription, 2> Vertex::getAttributeDescriptions(){
-    std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
-
-    attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].binding  = 0;
-    attributeDescriptions[0].format   = VK_FORMAT_R32G32_SFLOAT;
-    attributeDescriptions[0].offset   = offsetof(Vertex, pos);
-
-    attributeDescriptions[1].location = 1;
-    attributeDescriptions[1].binding  = 0;
-    attributeDescriptions[1].format   = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[1].offset   = offsetof(Vertex, color);
-
-    return attributeDescriptions;
-}
+const std::vector<uint16_t> vertexIndices{ 0, 1, 2, 2, 3, 0 };
 
 
 //==================================Main Functions==================================
 void Renderer::init(GLFWwindow * appWindow){
-    window = appWindow;
+    LOG_DEBUG("Initializing renderer");
 
-    enableValidationLayers = Logger::get().getMinLevel() <= Logger::Level::DEBUG;
+    enableValidationLayers = Logger::get().getMinLevel() <= Logger::Level::ERROR;
+    enableValidationLayers? LOG_DEBUG("Validation layers enabled") : LOG_DEBUG("Validation layers disabled");
+
+    window = appWindow;
     
     createVulkanInstance();
     setupDebugMessenger();
@@ -143,34 +121,46 @@ void Renderer::deviceWait(){
 }
 
 void Renderer::cleanup(){ 
+    LOG_DEBUG("Renderer cleanup");
+
     cleanupSwapchain();
 
+    LOG_TRACE("Cleanup : pipeline");
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyRenderPass(device, renderPass, nullptr);
 
+    LOG_TRACE("Cleanup : index buffer");
     vkDestroyBuffer(device, indexBuffer, nullptr);
     vkFreeMemory(device, indexBufferMemory, nullptr);
 
+    LOG_TRACE("Cleanup : vertex buffer");
     vkDestroyBuffer(device, vertexBuffer, nullptr);
     vkFreeMemory(device, vertexBufferMemory, nullptr);
 
+    LOG_TRACE("Cleanup : sync objects");
     for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
         vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
         vkDestroyFence(device, inFlightFences[i], nullptr);
     }
 
+    LOG_TRACE("Cleanup : command pools");
     vkDestroyCommandPool(device, transferCommandPool, nullptr);
     vkDestroyCommandPool(device, graphicsCommandPool, nullptr);
 
+    LOG_TRACE("Cleanup : device");
     vkDestroyDevice(device, nullptr);
 
     if (enableValidationLayers) {
+        LOG_TRACE("Cleanup : validation debug messenger");
         DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
     }
 
+    LOG_TRACE("Cleanup : surface");
     vkDestroySurfaceKHR(instance, surface, nullptr);
+
+    LOG_TRACE("Cleanup : Vulkan instance");
     vkDestroyInstance(instance, nullptr);
 }
 
@@ -208,7 +198,7 @@ void Renderer::createVulkanInstance(){
             createInfo.pNext                   = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
         } 
         else {
-            LOG_DEBUG("Validation layers enabled but not supported - disabling validation layers");
+            LOG_WARNING("Validation layers enabled but not supported - disabling validation layers");
             enableValidationLayers = false;
         } 
 
@@ -253,6 +243,8 @@ void Renderer::pickPhysicalDevice(){
     if (candidates.rbegin()->first > 0) {
         physicalDevice = candidates.rbegin()->second;
         LOG_RESULT(VK_SUCCESS, "Pick physical device");
+
+        LOG_INFO("↓ Physical device picked ↓"); 
         LOG_DEVICE_INFO(physicalDevice);
     } else {
         LOG_FATAL("Failed to find suitable GPU");
@@ -675,7 +667,7 @@ void Renderer::createVertexBuffer(){
 }
 
 void Renderer::createIndexBuffer(){
-    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+    VkDeviceSize bufferSize = sizeof(vertexIndices[0]) * vertexIndices.size();
 
     VkBuffer       stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -688,7 +680,7 @@ void Renderer::createIndexBuffer(){
 
     void* data;
     vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-        memcpy(data, indices.data(), static_cast<size_t>(bufferSize));
+        memcpy(data, vertexIndices.data(), static_cast<size_t>(bufferSize));
     vkUnmapMemory(device, stagingBufferMemory);
 
     createBuffer("index",
@@ -769,6 +761,8 @@ void Renderer::recreateSwapchain(){
 }
 
 void Renderer::cleanupSwapchain(){
+    LOG_TRACE("Cleanup : swapchain");
+
     for (size_t i=0; i < swapchainFramebuffers.size(); ++i) {
         vkDestroyFramebuffer(device, swapchainFramebuffers[i], nullptr);
     }
@@ -788,7 +782,21 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Renderer::debugCallback(
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData
 ){
-    LOG_VALIDATION(pCallbackData->pMessage);
+    switch (messageSeverity) {
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+            LOG_TRACE_S("Validation : "   << pCallbackData->pMessage);
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:              // Currently disabled - see populateDebugMessengerCreateInfo()
+            LOG_INFO_S("Validation : "    << pCallbackData->pMessage);
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+            LOG_WARNING_S("Validation : " << pCallbackData->pMessage);
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+            LOG_ERROR_S("Validation : "   << pCallbackData->pMessage);
+            break;
+        default: ;
+    }
 
     return VK_FALSE;
 }
@@ -900,7 +908,7 @@ void Renderer::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoE
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
     createInfo.messageType     = 
-        VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT    |
         VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     createInfo.pfnUserCallback = debugCallback;
@@ -957,6 +965,8 @@ int Renderer::rateDeviceSuitability(VkPhysicalDevice device){
 
     VkPhysicalDeviceFeatures deviceFeatures;
     vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+    LOG_TRACE_S("Rating device suitability : " << deviceProperties.deviceName);
 
     // Must check for swapchain extension support before querying for details
     if (!checkDeviceExtensionSupport(device)) return 0;
@@ -1151,7 +1161,7 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 
         vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(vertexIndices.size()), 1, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -1227,6 +1237,8 @@ void Renderer::createBuffer(const std::string& bufferName, VkDeviceSize size, Vk
 
 
 void Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size){
+    LOG_TRACE("Copying buffer");
+
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;

@@ -1,10 +1,13 @@
 #pragma once
 
+#include <vulkan/vulkan_core.h>
+
+#include "utilities.hpp"
+
+#include <sstream>    // Indirectly used in macros
 #include <cmath>
 #include <mutex>
 #include <string>
-#include <sstream>    // Indirectly used in macros
-#include <vulkan/vulkan_core.h>
 
 
 class Logger{
@@ -36,8 +39,7 @@ public:
 
     void log(Level level, const std::string& message) const;
     void logResult(VkResult result, const std::string& operation, const logFlags& flags) const;
-    void logValidation(const char* message) const;
-    void logDeviceInfo(VkPhysicalDevice device) const;
+    void logDeviceInfo(VkPhysicalDevice device, QueueFamilyIndices queueFamilies) const;
 
 
     Logger(const Logger&)            = delete;
@@ -60,6 +62,7 @@ private:
     const char* levelToString(Level level) const;
 };
 
+
 #define LOG_TRACE(msg)   Logger::get().log(Logger::Level::TRACE  , msg)
 #define LOG_DEBUG(msg)   Logger::get().log(Logger::Level::DEBUG  , msg)
 #define LOG_INFO(msg)    Logger::get().log(Logger::Level::INFO   , msg)
@@ -67,13 +70,12 @@ private:
 #define LOG_ERROR(msg)   Logger::get().log(Logger::Level::ERROR  , msg)
 #define LOG_FATAL(msg)   Logger::get().log(Logger::Level::FATAL  , msg)
 
-#define LOG_VALIDATION(msg) Logger::get().logValidation(msg)
-
 #define LOG_RESULT(result, operation)        Logger::get().logResult(result, operation, Logger::logFlags(true , Logger::Level::FATAL))
 #define LOG_RESULT_SILENT(result, operation) Logger::get().logResult(result, operation, Logger::logFlags(false, Logger::Level::FATAL))
 #define LOG_RESULT_OPT(result, operation)    Logger::get().logResult(result, operation, Logger::logFlags(true , Logger::Level::ERROR))
 
-#define LOG_DEVICE_INFO(device) Logger::get().logDeviceInfo(device);
+// Can/Should only be used inside Renderer class - findQueueFamilies() function is defined in Renderer class
+#define LOG_DEVICE_INFO(device)              Logger::get().logDeviceInfo(device, findQueueFamilies(device));  
 
 #define LOG_TRACE_S(stream) \
     do { \

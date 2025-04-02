@@ -4,7 +4,7 @@
 
 
 // Window resolution in screen coordinates
-const uint32_t WIDTH = 800;
+const uint32_t WIDTH  = 800;
 const uint32_t HEIGHT = 600;
 
 class App {

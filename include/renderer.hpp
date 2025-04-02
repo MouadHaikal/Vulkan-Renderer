@@ -2,13 +2,12 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
+
+#include "utilities.hpp"
 
 #include <string>
 #include <cstdint>
-#include <array>
 #include <vector>
-#include <optional>
 
 
 #define VERTEX_SHADER_CODE   "../shaders/spirv/vert.spv"  
@@ -23,33 +22,6 @@ const std::vector<const char*> deviceExtensions = {
 };
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
-
-struct QueueFamilyIndices {
-    std::optional<uint32_t> graphicsFamily;
-    std::optional<uint32_t> presentFamily;
-    std::optional<uint32_t> transferFamily;
-
-    bool isComplete(){
-        return graphicsFamily.has_value() &&
-               presentFamily.has_value() &&
-               transferFamily.has_value();
-    }
-};
-
-struct SwapchainSupportDetails {
-    VkSurfaceCapabilitiesKHR capabilities;
-    std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> presentModes;
-};
-
-
-struct Vertex {
-    glm::vec2 pos;
-    glm::vec3 color;
-
-    static VkVertexInputBindingDescription                  getBindingDescription();
-    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions();
-};
 
 
 class Renderer {
