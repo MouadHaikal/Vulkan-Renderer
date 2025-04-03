@@ -40,6 +40,8 @@ public:
 private:
     GLFWwindow *                 window;  
 
+    uint32_t                     currentFrame = 0;
+
     VkInstance                   instance;
 
     VkDebugUtilsMessengerEXT     debugMessenger;
@@ -79,8 +81,6 @@ private:
     std::vector<VkSemaphore>     imageAvailableSemaphores;
     std::vector<VkSemaphore>     renderFinishedSemaphores;
     std::vector<VkFence>         inFlightFences;
-
-    uint32_t                     currentFrame = 0;
 
 
     //==================================Main Functions==================================
@@ -127,7 +127,7 @@ private:
 
 
     //==================================Helper Functions==================================
-    std::vector<const char*> getRequiredExtensions();
+    std::vector<const char*> getInstanceExtensions();
     bool checkInstanceExtensionSupport(std::vector<const char*> &extensions);
     bool checkValidationLayerSupport();
 
@@ -143,7 +143,6 @@ private:
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities);
 
     static std::vector<char> readFile(const std::string &fileName);
-
     VkShaderModule createShaderModule(const std::vector<char> &code);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
@@ -152,6 +151,5 @@ private:
 
     void createBuffer(const std::string& bufferName, VkDeviceSize size, VkBufferUsageFlags usage,
                       VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 };

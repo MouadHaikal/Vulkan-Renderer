@@ -24,7 +24,7 @@ std::vector<Vertex> vertices{
     {{-0.5f,  0.5f}, {0.5f , 0.8f , 0.1f}}
 };
 
-const std::vector<uint16_t> vertexIndices{ 0, 1, 2, 2, 3, 0 };
+const std::vector<uint16_t> vertexIndices{ 0, 1, 2, 1, 2, 3 };
 
 
 //==================================Main Functions==================================
@@ -177,15 +177,6 @@ void Renderer::createVulkanInstance(){
     createInfo.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo        = &appInfo;
 
-    // Extensions
-    std::vector<const char*> extensions = getRequiredExtensions();
-
-    if (!checkInstanceExtensionSupport(extensions)){
-        LOG_FATAL("Vulkan instance extensions not supported");
-    }
-
-    createInfo.enabledExtensionCount   = static_cast<uint32_t>(extensions.size());
-    createInfo.ppEnabledExtensionNames = extensions.data();
 
     // Validation Layers
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
@@ -207,6 +198,17 @@ void Renderer::createVulkanInstance(){
         createInfo.ppEnabledLayerNames     = nullptr;
         createInfo.pNext                   = nullptr;
     }
+
+
+    // Extensions
+    std::vector<const char*> extensions = getInstanceExtensions();
+
+    if (!checkInstanceExtensionSupport(extensions)){
+        LOG_FATAL("Vulkan instance extensions not supported");
+    }
+
+    createInfo.enabledExtensionCount   = static_cast<uint32_t>(extensions.size());
+    createInfo.ppEnabledExtensionNames = extensions.data();
 
 
     LOG_RESULT(
@@ -240,27 +242,27 @@ void Renderer::pickPhysicalDevice(){
         candidates.insert(std::make_pair(score, device));
     }
 
-    if (candidates.rbegin()->first > 0) {
+    if (candidates.rbegin()->first < 0) {
+        LOG_FATAL("Failed to find suitable GPU");
+    } else {
         physicalDevice = candidates.rbegin()->second;
         LOG_RESULT(VK_SUCCESS, "Pick physical device");
 
         LOG_INFO("↓ Physical device picked ↓"); 
         LOG_DEVICE_INFO(physicalDevice);
-    } else {
-        LOG_FATAL("Failed to find suitable GPU");
     }
 }
 
 void Renderer::createLogicalDevice(){
     QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
     std::set<uint32_t> uniqueQueueFamilies = {
         indices.graphicsFamily.value(),
         indices.presentFamily.value(),
         indices.transferFamily.value()
     };
 
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
     float queuePriority = 1.0f;
 
     for (uint32_t queueFamily : uniqueQueueFamilies) {
@@ -284,24 +286,17 @@ void Renderer::createLogicalDevice(){
     createInfo.pQueueCreateInfos       = queueCreateInfos.data();
     createInfo.pEnabledFeatures        = &deviceFeatures;
 
+
     // Extensions
     createInfo.enabledExtensionCount   = static_cast<uint32_t>(deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-    
-    // Validation Layers
-    // -- Optional (device specific layers are deprecated)
-    if (enableValidationLayers){
-        createInfo.enabledLayerCount       = static_cast<uint32_t>(validationLayers.size());
-        createInfo.ppEnabledLayerNames     = validationLayers.data();
-    } else {
-        createInfo.enabledLayerCount       = 0;
-        createInfo.ppEnabledLayerNames     = nullptr;
-    }
 
+    
     LOG_RESULT(
         vkCreateDevice(physicalDevice, &createInfo, nullptr, &device),
         "Create logical device"
     );
+
 
     vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
     vkGetDeviceQueue(device, indices.presentFamily.value() , 0, &presentQueue);
@@ -341,8 +336,6 @@ void Renderer::createSwapchain(){
         createInfo.pQueueFamilyIndices   = queueFamilyIndices;
     } else {
         createInfo.imageSharingMode      = VK_SHARING_MODE_EXCLUSIVE;
-        createInfo.queueFamilyIndexCount = 0;             // Optional
-        createInfo.pQueueFamilyIndices   = nullptr;       // Optional
     }
 
     createInfo.preTransform          = swapchainSupport.capabilities.currentTransform;
@@ -417,8 +410,8 @@ void Renderer::createRenderPass(){
     dependency.srcSubpass    = VK_SUBPASS_EXTERNAL;
     dependency.dstSubpass    = 0;
     dependency.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = 0;
     dependency.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
     VkRenderPassCreateInfo renderPassInfo{};
@@ -622,8 +615,8 @@ void Renderer::createCommandPools(){
 
     // Transfer command pool
     if (queueFamilyIndices.transferFamily.value() == queueFamilyIndices.graphicsFamily.value()) {
+        LOG_TRACE("Using graphics command pool as transfer command pool - same family queue");
         transferCommandPool = graphicsCommandPool;
-        LOG_RESULT(VK_SUCCESS, "Copy graphics command pool into transfer command pool (same queue family)");
     }
     else {
         createInfo.queueFamilyIndex = queueFamilyIndices.transferFamily.value();
@@ -842,7 +835,7 @@ void Renderer::setupDebugMessenger(){
 
 
 //==================================Helper Functions==================================
-std::vector<const char*> Renderer::getRequiredExtensions(){
+std::vector<const char*> Renderer::getInstanceExtensions(){
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
@@ -969,21 +962,18 @@ int Renderer::rateDeviceSuitability(VkPhysicalDevice device){
     LOG_TRACE_S("Rating device suitability : " << deviceProperties.deviceName);
 
     // Must check for swapchain extension support before querying for details
-    if (!checkDeviceExtensionSupport(device)) return 0;
+    if (!checkDeviceExtensionSupport(device)) return -1;
 
     SwapchainSupportDetails swapchainDetails = querySwapchainSupport(device);
 
 
-    // Required
-    bool required = indices.isComplete() &&
+    bool required = indices.isComplete()              &&
                     !swapchainDetails.formats.empty() &&
                     !swapchainDetails.presentModes.empty();
 
-    if (required) { score = 1; }
-    else { return 0; }
+    if (!required) return -1;
 
 
-    // Secondary
     //  - Discrete GPU
     score += (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)? 1000 : 0;
     //  - Dedicated transfer queue family
@@ -1014,6 +1004,7 @@ SwapchainSupportDetails Renderer::querySwapchainSupport(VkPhysicalDevice device)
     // Capabilities
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
 
+
     // Formats
     uint32_t formatCount;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
@@ -1021,6 +1012,7 @@ SwapchainSupportDetails Renderer::querySwapchainSupport(VkPhysicalDevice device)
         details.formats.resize(formatCount);
         vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.data());
     }
+
 
     // Presentation modes
     uint32_t presentModeCount;
@@ -1168,7 +1160,7 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 
     LOG_RESULT_SILENT(
         vkEndCommandBuffer(commandBuffer),
-        "Record command buffer"
+        "End recording command buffer"
     );
 }
 
