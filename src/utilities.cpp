@@ -1,6 +1,15 @@
 #include "utilities.hpp"
 
 
+// QueueFamilyIndices ------------------------------------------------------------
+
+bool QueueFamilyIndices::isComplete(){
+    return graphicsFamily.has_value() &&
+           presentFamily.has_value()  &&
+           transferFamily.has_value();
+}
+
+
 // Vertex ------------------------------------------------------------------------
 
 VkVertexInputBindingDescription Vertex::getBindingDescription(){
@@ -27,15 +36,3 @@ std::array<VkVertexInputAttributeDescription, 2> Vertex::getAttributeDescription
 
     return attributeDescriptions;
 }
-
-
-// QueueFamilyIndices ------------------------------------------------------------
-
-bool QueueFamilyIndices::isComplete(){
-    return graphicsFamily.has_value() &&
-           presentFamily.has_value()  &&
-           transferFamily.has_value();
-}
-
-
-// SwapchainSupportDetails -------------------------------------------------------

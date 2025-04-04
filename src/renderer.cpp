@@ -1,3 +1,6 @@
+#define GLM_FORCE_RADIANS
+#include "glm/gtc/matrix_transform.hpp"
+
 #include "renderer.hpp"
 #include "logger.hpp"
 
@@ -15,6 +18,7 @@
 #include <cstring>
 #include <map>
 #include <vector>
+#include <chrono>
 
 
 std::vector<Vertex> vertices{
@@ -44,11 +48,15 @@ void Renderer::init(GLFWwindow * appWindow){
     createSwapchain();
     createImageViews();
     createRenderPass();
+    createDescriptorSetLayout();
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPools();
     createVertexBuffer();
     createIndexBuffer();
+    createUniformBuffers();
+    createDescriptorPool();
+    createDescriptorSets();
     createGraphicsCommandBuffers();
     createSyncObjects();
 }
@@ -69,6 +77,8 @@ void Renderer::drawFrame(){
 
     // Only reset fence if work is getting submitted to avoid deadlocks
     vkResetFences(device, 1, &inFlightFences[currentFrame]);
+
+    updateUniformBuffer(currentFrame);
 
     vkResetCommandBuffer(graphicsCommandBuffers[currentFrame], 0);
     recordCommandBuffer(graphicsCommandBuffers[currentFrame], imageIndex);
@@ -124,6 +134,16 @@ void Renderer::cleanup(){
     LOG_DEBUG("Renderer cleanup");
 
     cleanupSwapchain();
+
+    LOG_TRACE("Cleanup : uniform buffers");
+    for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        vkDestroyBuffer(device, uniformBuffers[i], nullptr);
+        vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
+    }
+
+    LOG_TRACE("Cleanup : descriptor pool");
+    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
     LOG_TRACE("Cleanup : pipeline");
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
@@ -430,6 +450,24 @@ void Renderer::createRenderPass(){
     );
 }
 
+void Renderer::createDescriptorSetLayout(){
+    VkDescriptorSetLayoutBinding uboLayoutBinding{};
+    uboLayoutBinding.binding         = 0;
+    uboLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayoutCreateInfo createInfo{};
+    createInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    createInfo.bindingCount = 1;
+    createInfo.pBindings    = &uboLayoutBinding;
+
+    LOG_RESULT(
+        vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &descriptorSetLayout),
+        "Create descriptor set layout"
+    );
+}
+
 void Renderer::createGraphicsPipeline(){
     // Shader Stages --------------------------------
     auto vertShaderCode = readFile(VERTEX_SHADER_CODE);
@@ -493,7 +531,7 @@ void Renderer::createGraphicsPipeline(){
     rasterizerInfo.polygonMode             = VK_POLYGON_MODE_FILL;
     rasterizerInfo.lineWidth               = 1.0f;
     rasterizerInfo.cullMode                = VK_CULL_MODE_BACK_BIT;
-    rasterizerInfo.frontFace               = VK_FRONT_FACE_CLOCKWISE;
+    rasterizerInfo.frontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizerInfo.depthBiasEnable         = VK_FALSE;
 
 
@@ -535,7 +573,9 @@ void Renderer::createGraphicsPipeline(){
 
     // Pipeline Layout --------------------------------
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.sType          = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts    = &descriptorSetLayout;
 
     LOG_RESULT(
         vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout),
@@ -687,6 +727,77 @@ void Renderer::createIndexBuffer(){
 
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+void Renderer::createUniformBuffers(){
+    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+    uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+    uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        createBuffer("uniform", 
+                     bufferSize, 
+                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+                     uniformBuffers[i], uniformBuffersMemory[i]
+        );
+
+        vkMapMemory(device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
+    }
+}
+
+void Renderer::createDescriptorPool(){
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    VkDescriptorPoolCreateInfo createInfo{};
+    createInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    createInfo.poolSizeCount = 1;
+    createInfo.pPoolSizes    = &poolSize;
+    createInfo.maxSets       = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    LOG_RESULT(
+        vkCreateDescriptorPool(device, &createInfo, nullptr, &descriptorPool),
+        "Create descriptor pool");
+}
+
+void Renderer::createDescriptorSets(){
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool     = descriptorPool;
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    allocInfo.pSetLayouts        = layouts.data();
+
+    descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+
+    LOG_RESULT(
+        vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()),
+        "Allocate descriptor sets"
+    );
+
+    for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = uniformBuffers[i];
+        bufferInfo.offset = 0;
+        bufferInfo.range  = VK_WHOLE_SIZE;     // sizeof(UniformBufferObject)
+        
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet          = descriptorSets[i];
+        descriptorWrite.dstBinding      = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo     = &bufferInfo;
+
+        vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+    }
 }
 
 void Renderer::createGraphicsCommandBuffers(){
@@ -1151,6 +1262,8 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
         VkDeviceSize offsets[]   = { 0 };
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+
         vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
         vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(vertexIndices.size()), 1, 0, 0, 0);
@@ -1263,4 +1376,22 @@ void Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize s
     vkQueueWaitIdle(transferQueue);
 
     vkFreeCommandBuffers(device, transferCommandPool, 1, &transferCommandBuffer);
+}
+
+void Renderer::updateUniformBuffer(uint32_t frame){
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto currentTime = std::chrono::high_resolution_clock::now();
+
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+
+    UniformBufferObject ubo{};
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view  = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj  = glm::perspective(glm::radians(45.0f), swapchainExtent.width / (float) swapchainExtent.height, 0.1f, 10.0f);
+
+    ubo.proj[1][1] *= -1;
+
+    memcpy(uniformBuffersMapped[frame], &ubo, sizeof(ubo));
 }

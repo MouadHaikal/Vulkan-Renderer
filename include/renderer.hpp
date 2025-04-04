@@ -62,6 +62,8 @@ private:
     std::vector<VkImageView>     swapchainImageViews;
 
     VkRenderPass                 renderPass;
+
+    VkDescriptorSetLayout        descriptorSetLayout;
     VkPipelineLayout             pipelineLayout;
     VkPipeline                   graphicsPipeline;
 
@@ -72,6 +74,13 @@ private:
 
     VkBuffer                     indexBuffer;
     VkDeviceMemory               indexBufferMemory;
+
+    std::vector<VkBuffer>        uniformBuffers;
+    std::vector<VkDeviceMemory>  uniformBuffersMemory;
+    std::vector<void*>           uniformBuffersMapped;
+
+    VkDescriptorPool             descriptorPool;
+    std::vector<VkDescriptorSet> descriptorSets;
 
     VkCommandPool                graphicsCommandPool;
     VkCommandPool                transferCommandPool;
@@ -91,11 +100,15 @@ private:
     void createSwapchain();
     void createImageViews();
     void createRenderPass();
+    void createDescriptorSetLayout();
     void createGraphicsPipeline();
     void createFramebuffers();
     void createCommandPools();
     void createVertexBuffer();
     void createIndexBuffer();
+    void createUniformBuffers();
+    void createDescriptorPool();
+    void createDescriptorSets();
     void createGraphicsCommandBuffers();
     void createSyncObjects();
 
@@ -152,4 +165,6 @@ private:
     void createBuffer(const std::string& bufferName, VkDeviceSize size, VkBufferUsageFlags usage,
                       VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
+    void updateUniformBuffer(uint32_t frame);
 };
