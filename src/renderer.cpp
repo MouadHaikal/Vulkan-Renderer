@@ -1,3 +1,6 @@
+#include <glm/common.hpp>
+#include <glm/exponential.hpp>
+#include <glm/trigonometric.hpp>
 #define GLM_FORCE_RADIANS
 #include "glm/gtc/matrix_transform.hpp"
 
@@ -22,13 +25,36 @@
 
 
 std::vector<Vertex> vertices{
-    {{-0.5f, -0.5f}, {0.8f , 0.15f, 0.6f}},
-    {{ 0.5f, -0.5f}, {0.15f, 0.2f , 0.9f}},
-    {{ 0.5f,  0.5f}, {0.95f, 0.4f , 0.0f}},
-    {{-0.5f,  0.5f}, {0.5f , 0.8f , 0.1f}}
+    {{-0.5f,  0.5f, 0.0f}, {0.8f , 0.15f, 0.6f}},
+    {{ 0.5f,  0.5f, 0.0f}, {0.15f, 0.2f , 0.9f}},
+    {{ 0.5f, -0.5f, 0.0f}, {0.95f, 0.4f , 0.0f}},
+    {{-0.5f, -0.5f, 0.0f}, {0.5f , 0.8f , 0.1f}},
+
+    {{-0.5f,  0.5f, 1.0f}, {0.4f , 0.5f , 0.2f}},
+    {{ 0.5f,  0.5f, 1.0f}, {0.1f , 0.7f , 0.3f}},
+    {{ 0.5f, -0.5f, 1.0f}, {0.7f , 0.1f , 0.6f}},
+    {{-0.5f, -0.5f, 1.0f}, {0.1f , 0.3f , 0.8f}}
 };
 
-const std::vector<uint16_t> vertexIndices{ 0, 1, 2, 1, 2, 3 };
+const std::vector<uint16_t> vertexIndices{ 
+    4, 7, 6, 
+    6, 5, 4, 
+
+    0, 1, 2, 
+    2, 3, 0, 
+
+    7, 3, 2, 
+    2, 6, 7, 
+
+    5, 1, 0, 
+    0, 4, 5, 
+
+    6, 2, 1, 
+    1, 5, 6, 
+
+    4, 0, 3, 
+    3, 7, 4, 
+};
 
 
 //==================================Main Functions==================================
@@ -1387,8 +1413,8 @@ void Renderer::updateUniformBuffer(uint32_t frame){
 
 
     UniformBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view  = glm::lookAt(glm::vec3(1.0f, 1.0f, 0.5f), glm::vec3(0.0f, 0.0f, 0.5f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, glm::cos(time), glm::sin(time)));
+    ubo.view  = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.5f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj  = glm::perspective(glm::radians(90.0f), swapchainExtent.width / (float) swapchainExtent.height, 0.1f, 10.0f);
 
     // The Y axis is pointing down in Vulkan (glm was made for OpenGL - Y axis pointing up)
