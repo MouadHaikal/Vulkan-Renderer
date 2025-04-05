@@ -60,6 +60,7 @@ private:
 
 
     const char* levelToString(Level level) const;
+    std::string lowerCase(const std::string& str) const;
 };
 
 

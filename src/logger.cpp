@@ -1,15 +1,20 @@
 #include "logger.hpp"
 #include "utilities.hpp"
 
-#include <cctype>
 #include <cstdlib>
-#include <string>
 #include <iostream>
-#include <vulkan/vulkan_core.h>
+#include <string>
 
-#define ICON_SUCCESS "\033[32m\u2713\033[0m "
-#define ICON_WARNING "\033[33m\u26A0\033[0m "
-#define ICON_FAILURE "\033[31m\u274C\033[0m"
+#define TEXT_COLOR_GRAY       "\033[97m"
+#define TEXT_COLOR_WHITE      "\033[37m"
+#define TEXT_COLOR_WHITE_BOLD "\033[1;37m"
+#define TEXT_COLOR_YELLOW     "\033[93m"
+#define TEXT_COLOR_ORANGE     "\033[38;5;208m"
+#define TEXT_COLOR_FLAME      "\033[38;5;202m"
+#define TEXT_COLOR_RED_BOLD   "\033[1;38;5;160m"
+
+#define RESET_TEXT_COLOR      "\033[0m"
+
 
 // Innitialize static members
 Logger*    Logger::instance = nullptr;
@@ -46,10 +51,10 @@ void Logger::log(Level level, const std::string& message) const{
     std::lock_guard<std::mutex> lock(logMutex);
 
     std::ostream& stream = (level >= Level::ERROR)? std::cerr : std::cout;
-    stream << "[" << levelToString(level) << "] " << message << std::endl;
+    stream << levelToString(level) << message << RESET_TEXT_COLOR << std::endl;
 
     if (level == Level::FATAL) {
-        stream << "Aborting" << std::endl;
+        stream << TEXT_COLOR_RED_BOLD "Aborting" RESET_TEXT_COLOR << std::endl;
         std::abort();    
     }
 }
@@ -57,12 +62,11 @@ void Logger::log(Level level, const std::string& message) const{
 void Logger::logResult(VkResult result, const std::string& operation, const logFlags& flags) const{
     if (result == VK_SUCCESS) {
         if (flags.traceSuccess) {
-            log(Level::TRACE, ICON_SUCCESS + operation);
+            log(Level::TRACE, operation);
         }
 
     } else{
-        std::string icon = (flags.failureLevel >= Level::ERROR) ? ICON_FAILURE : ICON_WARNING;
-        log(flags.failureLevel, icon + "Failed to " + std::string(1, static_cast<char>(tolower(operation[0]))) + operation.substr(1));
+        log(flags.failureLevel, "Failed to " + lowerCase(operation));
     }
 }
 
@@ -103,13 +107,22 @@ void Logger::logDeviceInfo(VkPhysicalDevice device, QueueFamilyIndices queueFami
 
 const char* Logger::levelToString(Level level) const{
     switch (level) {
-        case Level::TRACE  : return "TRACE";
-        case Level::DEBUG  : return "DEBUG";
-        case Level::INFO   : return "INFO";
-        case Level::WARNING: return "WARNING";
-        case Level::ERROR  : return "ERROR";
-        case Level::FATAL  : return "FATAL";
+        case Level::TRACE  : return TEXT_COLOR_GRAY        "[TRACE] ";
+        case Level::DEBUG  : return TEXT_COLOR_WHITE       "[DEBUG] ";
+        case Level::INFO   : return TEXT_COLOR_WHITE_BOLD  "[INFO]  ";
+        case Level::WARNING: return TEXT_COLOR_ORANGE      "[WARNING] ";
+        case Level::ERROR  : return TEXT_COLOR_FLAME       "[ERROR] ";
+        case Level::FATAL  : return TEXT_COLOR_RED_BOLD    "[FATAL] ";
 
-        default            : return "UNKNOWN";
+        default            : return "[UNKNOWN]";
     }
+}
+
+std::string Logger::lowerCase(const std::string& str) const{
+    if (str.empty()) return str;
+
+    std::string result = str;
+    result[0] = static_cast<char>( std::tolower(static_cast<unsigned char>(result[0])));
+
+    return result;
 }
