@@ -1,11 +1,9 @@
-#!/bin/zsh
-set -e  # Exit immediately if a command exits with a non-zero status
+#!/bin/sh
+set -e
 
-if [ ! -d "build" ]; then
-  mkdir build
-fi
-
+mkdir -p build
 cd build
+
 cmake ..
 cmake --build .
 
