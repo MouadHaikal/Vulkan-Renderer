@@ -1,6 +1,3 @@
-#include <glm/common.hpp>
-#include <glm/exponential.hpp>
-#include <glm/trigonometric.hpp>
 #define GLM_FORCE_RADIANS
 #include "glm/gtc/matrix_transform.hpp"
 
@@ -25,15 +22,15 @@
 
 
 std::vector<Vertex> vertices{
-    {{-0.5f,  0.5f, 0.0f}, {0.8f , 0.15f, 0.6f}},
-    {{ 0.5f,  0.5f, 0.0f}, {0.15f, 0.2f , 0.9f}},
-    {{ 0.5f, -0.5f, 0.0f}, {0.95f, 0.4f , 0.0f}},
-    {{-0.5f, -0.5f, 0.0f}, {0.5f , 0.8f , 0.1f}},
+    {{-0.5f,  0.5f, -0.5f}, {0.8f , 0.15f, 0.6f}},
+    {{ 0.5f,  0.5f, -0.5f}, {0.15f, 0.2f , 0.9f}},
+    {{ 0.5f, -0.5f, -0.5f}, {0.95f, 0.4f , 0.0f}},
+    {{-0.5f, -0.5f, -0.5f}, {0.5f , 0.8f , 0.1f}},
 
-    {{-0.5f,  0.5f, 1.0f}, {0.4f , 0.5f , 0.2f}},
-    {{ 0.5f,  0.5f, 1.0f}, {0.1f , 0.7f , 0.3f}},
-    {{ 0.5f, -0.5f, 1.0f}, {0.7f , 0.1f , 0.6f}},
-    {{-0.5f, -0.5f, 1.0f}, {0.1f , 0.3f , 0.8f}}
+    {{-0.5f,  0.5f,  0.5f}, {0.4f , 0.5f , 0.2f}},
+    {{ 0.5f,  0.5f,  0.5f}, {0.1f , 0.7f , 0.3f}},
+    {{ 0.5f, -0.5f,  0.5f}, {0.7f , 0.1f , 0.6f}},
+    {{-0.5f, -0.5f,  0.5f}, {0.1f , 0.3f , 0.8f}}
 };
 
 const std::vector<uint16_t> vertexIndices{ 
