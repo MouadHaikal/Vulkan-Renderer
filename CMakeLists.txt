@@ -21,7 +21,7 @@ file(GLOB_RECURSE SRC_FILES src/*.cpp)
 add_executable(VulkanApp ${SRC_FILES})
 
 # Include directories
-target_include_directories(VulkanApp PRIVATE include)
+target_include_directories(VulkanApp PRIVATE include vendor)
 
 # Link libraries
 target_link_libraries(VulkanApp PRIVATE 

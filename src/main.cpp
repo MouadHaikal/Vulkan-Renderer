@@ -8,6 +8,8 @@
 //    - https://www.youtube.com/watch?v=FX78gvy5IR0
 // ** vkQueueWaitIdle(transferQueue); in Renderer::copyBuffer()
 // ** vkDeviceWaitIdle(device); in Renderer::recreateSwapchain()
+// ** Concurrent sharing mode for graphics x transfer queues in Renderer::createBuffer() & Renderer::createImage() 
+//    - Fix : Memory barriers with VK_SHARING_MODE_EXCLUSIVE
 //
 // TODO: Set Application/Engine name in Renderer::createVulkanInstance() and App::init()
 // TODO: Edit Renderer::rateDeviceSuitability(VkPhysicalDevice device)

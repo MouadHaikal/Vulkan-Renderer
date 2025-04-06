@@ -10,6 +10,8 @@
 #include <vector>
 
 
+#define TEXTURE "../assets/textures/texture.jpeg"
+
 #define VERTEX_SHADER_CODE   "../shaders/spirv/vert.spv"  
 #define FRAGMENT_SHADER_CODE "../shaders/spirv/frag.spv"  
 
@@ -69,6 +71,11 @@ private:
 
     std::vector<VkFramebuffer>   swapchainFramebuffers;
 
+    VkImage                      textureImage;
+    VkDeviceMemory               textureImageMemory;
+    VkImageView                  textureImageView;
+    VkSampler                    textureSampler;
+
     VkBuffer                     vertexBuffer;
     VkDeviceMemory               vertexBufferMemory;
 
@@ -92,18 +99,22 @@ private:
     std::vector<VkFence>         inFlightFences;
 
 
+
     //==================================Main Functions==================================
     void createVulkanInstance();
     void createSurface();
     void pickPhysicalDevice();
     void createLogicalDevice();
     void createSwapchain();
-    void createImageViews();
+    void createSwapchainImageViews();
     void createRenderPass();
     void createDescriptorSetLayout();
     void createGraphicsPipeline();
     void createFramebuffers();
     void createCommandPools();
+    void createTextureImage();
+    void createTextureImageView();
+    void createTextureSampler();
     void createVertexBuffer();
     void createIndexBuffer();
     void createUniformBuffers();
@@ -114,6 +125,7 @@ private:
 
     void recreateSwapchain();
     void cleanupSwapchain();
+
 
 
     //==================================Validation==================================
@@ -139,32 +151,62 @@ private:
     void setupDebugMessenger();
 
 
+
     //==================================Helper Functions==================================
+
+    //---Query----------------------------------------------------------------------------
     std::vector<const char*> getInstanceExtensions();
+    QueueFamilyIndices       findQueueFamilies(VkPhysicalDevice device);
+    SwapchainSupportDetails  querySwapchainSupport(VkPhysicalDevice device);
+    static std::vector<char> readFile(const std::string &fileName);
+    uint32_t                 findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+
+    //---Check----------------------------------------------------------------------------
     bool checkInstanceExtensionSupport(std::vector<const char*> &extensions);
     bool checkValidationLayerSupport();
-
-    void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo);
-
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
-    int rateDeviceSuitability(VkPhysicalDevice device);
     bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+    int  rateDeviceSuitability(VkPhysicalDevice device);
 
-    SwapchainSupportDetails querySwapchainSupport(VkPhysicalDevice device);
+
+    //---Choose---------------------------------------------------------------------------
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats);
-    VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availableModes);
-    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities);
+    VkPresentModeKHR   chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availableModes);
+    VkExtent2D         chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities);
 
-    static std::vector<char> readFile(const std::string &fileName);
-    VkShaderModule createShaderModule(const std::vector<char> &code);
 
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    //---Create---------------------------------------------------------------------------
+    VkShaderModule createShaderModule(const std::string& name, const std::vector<char> &code);
+    void           createBuffer(const std::string& name, 
+                                VkDeviceSize size, 
+                                VkBufferUsageFlags usage,
+                                VkMemoryPropertyFlags properties, 
+                                VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+    void           createImage(const std::string& name, 
+                               uint32_t width, uint32_t height, 
+                               VkFormat format, VkImageTiling tiling, 
+                               VkImageUsageFlags usage, 
+                               VkMemoryPropertyFlags properties, 
+                               VkImage& image, VkDeviceMemory& imageMemory);
+    VkImageView    createImageView(const std::string& name, VkImage image, VkFormat format);
 
-    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
-    void createBuffer(const std::string& bufferName, VkDeviceSize size, VkBufferUsageFlags usage,
-                      VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-
+    //---Modify---------------------------------------------------------------------------
     void updateUniformBuffer(uint32_t frame);
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+
+
+    //---Copy-----------------------------------------------------------------------------
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
+
+    //---Commands-------------------------------------------------------------------------
+    void            recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    VkCommandBuffer beginSingleTimeCommands(VkCommandPool &commandPool);
+    void            endSingleTimeCommands(VkCommandBuffer &commandBuffer, VkCommandPool &commandPool, VkQueue &queue);
+
+
+    //---Validation-----------------------------------------------------------------------
+    void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo);
 };
