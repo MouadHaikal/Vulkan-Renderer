@@ -1,4 +1,4 @@
-#include "app.hpp"
+#include <app.hpp>
 
 // Issues:
 // ** Due to relative file paths in Renderer (shader files) executable must be ran from ${PROJECT_ROOT}/bin

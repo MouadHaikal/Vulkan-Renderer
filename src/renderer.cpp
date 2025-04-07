@@ -1,9 +1,9 @@
-#include "renderer.hpp"
-#include "logger.hpp"
+#include <renderer.hpp>
+#include <logger.hpp>
 
 
 #define GLM_FORCE_RADIANS
-#include "glm/gtc/matrix_transform.hpp"
+#include <glm/gtc/matrix_transform.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>

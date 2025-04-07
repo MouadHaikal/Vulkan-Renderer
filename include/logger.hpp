@@ -2,7 +2,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "utilities.hpp"
+#include <utilities.hpp>
 
 #include <sstream>    // Indirectly used in macros
 #include <cmath>
