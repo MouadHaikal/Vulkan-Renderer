@@ -1,6 +1,8 @@
 #include <app.hpp>
 
 // Issues:
+// ** App uses Vulkan 1.4 which might not be the latest version installed in end user machine
+// FIXED: Transfer command pool cleanup in the case of it being the same as the graphics queue
 // ** Due to relative file paths in Renderer (shader files) executable must be ran from ${PROJECT_ROOT}/bin
 // ** The size of the window is not always WIDTH x HEIGHT due to scale (see app.cpp)
 // ** VK_PRESENT_MODE_MAILBOX_KHR is causing GPU to go 100% - solution: vsync/ max frame rate (see Renderer::chooseSwapPresentMode())

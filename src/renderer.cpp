@@ -204,8 +204,12 @@ void Renderer::cleanup(){
     }
 
     LOG_TRACE("Cleanup : command pools");
-    vkDestroyCommandPool(device, transferCommandPool, nullptr);
-    vkDestroyCommandPool(device, graphicsCommandPool, nullptr);
+    if (transferCommandPool == graphicsCommandPool) {
+        vkDestroyCommandPool(device, graphicsCommandPool, nullptr);
+    } else {
+        vkDestroyCommandPool(device, graphicsCommandPool, nullptr);
+        vkDestroyCommandPool(device, transferCommandPool, nullptr);
+    }
 
     LOG_TRACE("Cleanup : device");
     vkDestroyDevice(device, nullptr);
