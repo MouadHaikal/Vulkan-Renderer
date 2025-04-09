@@ -5,12 +5,10 @@
 
 #include <utilities.hpp>
 
-#include <string>
-#include <cstdint>
-#include <vector>
+#include <bits/stdc++.h>
 
 
-#define TEXTURE "../assets/textures/texture.jpeg"
+#define TEXTURE "../assets/textures/texture.jpg"
 
 #define VERTEX_SHADER_CODE   "../shaders/spirv/vert.spv"  
 #define FRAGMENT_SHADER_CODE "../shaders/spirv/frag.spv"  
@@ -71,6 +69,10 @@ private:
 
     std::vector<VkFramebuffer>   swapchainFramebuffers;
 
+    VkImage                      depthImage;
+    VkDeviceMemory               depthImageMemory;
+    VkImageView                  depthImageView;
+
     VkImage                      textureImage;
     VkDeviceMemory               textureImageMemory;
     VkImageView                  textureImageView;
@@ -110,8 +112,9 @@ private:
     void createRenderPass();
     void createDescriptorSetLayout();
     void createGraphicsPipeline();
-    void createFramebuffers();
     void createCommandPools();
+    void createDepthResources();
+    void createFramebuffers();
     void createTextureImage();
     void createTextureImageView();
     void createTextureSampler();
@@ -160,6 +163,8 @@ private:
     SwapchainSupportDetails  querySwapchainSupport(VkPhysicalDevice device);
     static std::vector<char> readFile(const std::string &fileName);
     uint32_t                 findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+    VkFormat                 findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+    VkFormat                 findDepthFormat();
 
 
     //---Check----------------------------------------------------------------------------
@@ -167,6 +172,7 @@ private:
     bool checkValidationLayerSupport();
     bool checkDeviceExtensionSupport(VkPhysicalDevice device);
     int  rateDeviceSuitability(VkPhysicalDevice device);
+    bool hasStencilComponent(VkFormat format);
 
 
     //---Choose---------------------------------------------------------------------------
@@ -188,7 +194,7 @@ private:
                                VkImageUsageFlags usage, 
                                VkMemoryPropertyFlags properties, 
                                VkImage& image, VkDeviceMemory& imageMemory);
-    VkImageView    createImageView(const std::string& name, VkImage image, VkFormat format);
+    VkImageView    createImageView(const std::string& name, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
 
 
     //---Modify---------------------------------------------------------------------------
