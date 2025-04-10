@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(VulkanApp)
+project(VulkanRenderer)
 
 # Compiler settings
 set(CMAKE_CXX_STANDARD 17)
@@ -21,13 +21,13 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "Disable GLFW examples" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "Disable GLFW tests" FORCE)
 
 
-add_executable(VulkanApp ${SRC_FILES})
+add_executable(VulkanRenderer ${SRC_FILES})
 
 # Include directories
-target_include_directories(VulkanApp PRIVATE include vendor)
+target_include_directories(VulkanRenderer PRIVATE include vendor)
 
 # Link libraries
-target_link_libraries(VulkanApp PRIVATE 
+target_link_libraries(VulkanRenderer PRIVATE 
     Vulkan::Vulkan 
     glfw 
 )

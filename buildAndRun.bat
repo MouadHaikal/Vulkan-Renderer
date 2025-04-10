@@ -6,4 +6,4 @@ cmake -G "Ninja" ..
 cmake --build . --config Release
 
 cd ..\bin
-VulkanApp.exe
+VulkanRenderer.exe

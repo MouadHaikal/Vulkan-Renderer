@@ -8,4 +8,4 @@ cmake ..
 cmake --build .
 
 cd ../bin
-./VulkanApp
+./VulkanRenderer
