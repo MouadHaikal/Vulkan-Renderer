@@ -8,6 +8,9 @@
 #include <bits/stdc++.h>
 
 
+#define MODEL         "../assets/models/viking_room.obj"
+#define MODEL_TEXTURE "../assets/textures/viking_room.png"
+
 #define TEXTURE "../assets/textures/texture.jpg"
 
 #define VERTEX_SHADER_CODE   "../shaders/spirv/vert.spv"  
@@ -78,6 +81,8 @@ private:
     VkImageView                  textureImageView;
     VkSampler                    textureSampler;
 
+    std::vector<Vertex>          vertices;
+    std::vector<uint32_t>        vertexIndices;
     VkBuffer                     vertexBuffer;
     VkDeviceMemory               vertexBufferMemory;
 
@@ -118,6 +123,7 @@ private:
     void createTextureImage();
     void createTextureImageView();
     void createTextureSampler();
+    void loadModel();
     void createVertexBuffer();
     void createIndexBuffer();
     void createUniformBuffers();

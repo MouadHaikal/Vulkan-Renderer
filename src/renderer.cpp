@@ -10,8 +10,12 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tol/tiny_obj_loader.h>
 
 
+
+/*
 std::vector<Vertex> vertices{
     // Cube
     {{-0.5f,  0.5f, -0.5f}, {0.8f , 0.15f, 0.6f}, {1.0f, 1.0f}},
@@ -55,6 +59,7 @@ const std::vector<uint16_t> vertexIndices{
     8, 9, 10,
     10, 11, 8
 };
+*/
 
 
 //==================================Main Functions==================================
@@ -82,6 +87,7 @@ void Renderer::init(GLFWwindow * appWindow){
     createTextureImage();
     createTextureImageView();
     createTextureSampler();
+    loadModel();
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffers();
@@ -772,7 +778,7 @@ void Renderer::createDepthResources(){
 void Renderer::createTextureImage(){
     int texWidth, texHeight, texChannels;
 
-    stbi_uc* pixels = stbi_load(TEXTURE, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    stbi_uc* pixels = stbi_load(MODEL_TEXTURE, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     if (!pixels) LOG_FATAL("Failed to load texture image");
 
     VkDeviceSize imageSize = texWidth * texHeight * 4;
@@ -864,6 +870,47 @@ void Renderer::createTextureSampler(){
         vkCreateSampler(device, &createInfo, nullptr, &textureSampler), 
         "Create texture sampler"
     );
+}
+
+void Renderer::loadModel(){
+    tinyobj::attrib_t                attrib;
+    std::vector<tinyobj::shape_t>    shapes;
+    std::vector<tinyobj::material_t> materials;
+
+    std::string warn, err;
+
+    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL)) {
+        LOG_ERROR_S("Failed to load model : " << warn + err);
+    }
+
+    std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
+    for (const auto& shape : shapes) {
+        for (const auto& index : shape.mesh.indices) {
+            Vertex vertex{};
+
+            vertex.pos = {
+                attrib.vertices[3 * index.vertex_index + 0],
+                attrib.vertices[3 * index.vertex_index + 1],
+                attrib.vertices[3 * index.vertex_index + 2]
+            };
+
+            vertex.texCoord = {
+                attrib.texcoords[2 * index.texcoord_index + 0],
+                1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+            };
+
+            vertex.color = { 1.0f, 1.0f, 1.0f };
+
+            // vertices.push_back(vertex);
+            // vertexIndices.push_back(vertexIndices.size());
+            if (uniqueVertices.count(vertex) == 0) {
+                uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+                vertices.push_back(vertex);
+            }
+            vertexIndices.push_back(uniqueVertices[vertex]);
+        }
+    }
 }
 
 void Renderer::createVertexBuffer(){
@@ -1492,7 +1539,7 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
-        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
         vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(vertexIndices.size()), 1, 0, 0, 0);
 
@@ -1593,9 +1640,9 @@ void Renderer::updateUniformBuffer(uint32_t frame){
 
 
     UniformBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, glm::cos(time), glm::sin(time)));
-    ubo.view  = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj  = glm::perspective(glm::radians(90.0f), swapchainExtent.width / (float) swapchainExtent.height, 0.1f, 10.0f);
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(45.0f), glm::vec3(-1.0f, -1.0f, -1.0f));
+    ubo.view  = glm::lookAt(glm::vec3(2.0f, 2.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj  = glm::perspective(glm::radians(60.0f), swapchainExtent.width / (float) swapchainExtent.height, 0.1f, 10.0f);
 
     // The Y axis is pointing down in Vulkan (glm was made for OpenGL - Y axis pointing up)
     // Must flip rasterizer front face so that backface culling works as intended

@@ -1,5 +1,7 @@
 #include <utilities.hpp>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
 
 // QueueFamilyIndices ------------------------------------------------------------
 
@@ -40,4 +42,18 @@ std::array<VkVertexInputAttributeDescription, 3> Vertex::getAttributeDescription
     attributeDescriptions[2].offset   = offsetof(Vertex, texCoord);
 
     return attributeDescriptions;
+}
+
+bool Vertex::operator==(const Vertex& other) const {
+    return pos      == other.pos   &&
+           color    == other.color &&
+           texCoord == other.texCoord;
+}
+
+namespace std {
+    size_t hash<Vertex>::operator()(const Vertex& vertex) const {
+        return ((hash<glm::vec3>()(vertex.pos)                ^
+                (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
+                (hash<glm::vec2>()(vertex.texCoord) << 1);
+    }
 }
