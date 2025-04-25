@@ -28,8 +28,6 @@ void App::mainLoop(){
         glfwPollEvents();
         renderer.drawFrame();
     }
-
-    renderer.deviceWait();
 }
 
 void App::cleanup(){

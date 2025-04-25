@@ -1,9 +1,5 @@
 #include <logger.hpp>
-#include <utilities.hpp>
 
-#include <cstdlib>
-#include <iostream>
-#include <string>
 
 #define TEXT_COLOR_GRAY       "\033[97m"
 #define TEXT_COLOR_WHITE      "\033[37m"

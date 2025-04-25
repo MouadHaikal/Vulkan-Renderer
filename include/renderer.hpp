@@ -1,11 +1,8 @@
 #pragma once
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
+#include <memory>
 #include <utilities.hpp>
-
-#include <bits/stdc++.h>
+#include <mesh.hpp>
 
 
 #define MODEL         "../assets/models/viking_room.obj"
@@ -24,7 +21,7 @@ const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-const int MAX_FRAMES_IN_FLIGHT = 2;
+const int MAX_FRAMES_IN_FLIGHT = 3;
 
 
 class Renderer {
@@ -35,8 +32,6 @@ public:
     void init(GLFWwindow * appWindow);
 
     void drawFrame();
-
-    void deviceWait();
 
     void cleanup();
 
@@ -51,6 +46,8 @@ private:
 
     VkPhysicalDevice             physicalDevice = VK_NULL_HANDLE;
     VkDevice                     device         = VK_NULL_HANDLE;
+
+    QueueFamilyIndices           queueFamilyIndices;
 
     VkQueue                      graphicsQueue;
     VkQueue                      presentQueue;
@@ -81,13 +78,14 @@ private:
     VkImageView                  textureImageView;
     VkSampler                    textureSampler;
 
-    std::vector<Vertex>          vertices;
-    std::vector<uint32_t>        vertexIndices;
-    VkBuffer                     vertexBuffer;
-    VkDeviceMemory               vertexBufferMemory;
+    std::vector<std::unique_ptr<Mesh>> meshes; 
 
-    VkBuffer                     indexBuffer;
-    VkDeviceMemory               indexBufferMemory;
+    // std::vector<Vertex>          vertices;
+    // std::vector<uint32_t>        vertexIndices;
+    // VkBuffer                     vertexBuffer;
+    // VkDeviceMemory               vertexBufferMemory;
+    // VkBuffer                     indexBuffer;
+    // VkDeviceMemory               indexBufferMemory;
 
     std::vector<VkBuffer>        uniformBuffers;
     std::vector<VkDeviceMemory>  uniformBuffersMemory;
@@ -123,9 +121,11 @@ private:
     void createTextureImage();
     void createTextureImageView();
     void createTextureSampler();
-    void loadModel();
-    void createVertexBuffer();
-    void createIndexBuffer();
+
+    void loadMeshes();
+    // void loadModel();
+    // void createVertexBuffer();
+    // void createIndexBuffer();
     void createUniformBuffers();
     void createDescriptorPool();
     void createDescriptorSets();
@@ -165,10 +165,9 @@ private:
 
     //---Query----------------------------------------------------------------------------
     std::vector<const char*> getInstanceExtensions();
-    QueueFamilyIndices       findQueueFamilies(VkPhysicalDevice device);
     SwapchainSupportDetails  querySwapchainSupport(VkPhysicalDevice device);
+    QueueFamilyIndices       findQueueFamilies(VkPhysicalDevice device);
     static std::vector<char> readFile(const std::string &fileName);
-    uint32_t                 findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
     VkFormat                 findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
     VkFormat                 findDepthFormat();
 
@@ -189,18 +188,7 @@ private:
 
     //---Create---------------------------------------------------------------------------
     VkShaderModule createShaderModule(const std::string& name, const std::vector<char> &code);
-    void           createBuffer(const std::string& name, 
-                                VkDeviceSize size, 
-                                VkBufferUsageFlags usage,
-                                VkMemoryPropertyFlags properties, 
-                                VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-    void           createImage(const std::string& name, 
-                               uint32_t width, uint32_t height, 
-                               VkFormat format, VkImageTiling tiling, 
-                               VkImageUsageFlags usage, 
-                               VkMemoryPropertyFlags properties, 
-                               VkImage& image, VkDeviceMemory& imageMemory);
-    VkImageView    createImageView(const std::string& name, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+    void           createImageView(const std::string& name, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, VkImageView& imageView);
 
 
     //---Modify---------------------------------------------------------------------------
@@ -209,14 +197,14 @@ private:
 
 
     //---Copy-----------------------------------------------------------------------------
-    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    // void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
 
     //---Commands-------------------------------------------------------------------------
     void            recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-    VkCommandBuffer beginSingleTimeCommands(VkCommandPool &commandPool);
-    void            endSingleTimeCommands(VkCommandBuffer &commandBuffer, VkCommandPool &commandPool, VkQueue &queue);
+    // VkCommandBuffer beginSingleTimeCommands(VkCommandPool &commandPool);
+    // void            endSingleTimeCommands(VkCommandBuffer &commandBuffer, VkCommandPool &commandPool, VkQueue &queue);
 
 
     //---Validation-----------------------------------------------------------------------

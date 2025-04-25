@@ -1,13 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan_core.h>
-
 #include <utilities.hpp>
-
-#include <sstream>    // Indirectly used in macros
-#include <cmath>
-#include <mutex>
-#include <string>
 
 
 class Logger{

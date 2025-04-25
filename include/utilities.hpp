@@ -1,6 +1,8 @@
 #pragma once
 
-#include <vulkan/vulkan_core.h>
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
 #include <glm/glm.hpp>
 
 #include <bits/stdc++.h>
@@ -45,3 +47,32 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 proj;
 };
+
+
+namespace utils {
+
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice physicalDevice);
+
+    VkCommandBuffer beginSingleTimeCommands(VkCommandPool commandPool, VkDevice device);
+    void            endSingleTimeCommands(VkCommandBuffer commandBuffer, VkDevice device, VkCommandPool commandPool, VkQueue queue);
+
+    void createBuffer(const std::string& name, 
+                      VkDeviceSize size, 
+                      VkBufferUsageFlags usage,
+                      VkMemoryPropertyFlags properties, 
+                      VkBuffer& buffer, VkDeviceMemory& bufferMemory,
+                      VkPhysicalDevice physicalDevice, VkDevice device, 
+                      const QueueFamilyIndices& indices);
+
+    void createImage(const std::string& name, 
+                     uint32_t width, uint32_t height, 
+                     VkFormat format, VkImageTiling tiling, 
+                     VkImageUsageFlags usage, 
+                     VkMemoryPropertyFlags properties, 
+                     VkImage& image, VkDeviceMemory& imageMemory,
+                     VkPhysicalDevice physicalDevice, VkDevice device,
+                     const QueueFamilyIndices& indices);
+
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDevice device, VkQueue queue, VkCommandPool commandPool);
+
+}
