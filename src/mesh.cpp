@@ -1,16 +1,16 @@
 #include <mesh.hpp>
 
 #include <logger.hpp>
-#include <vector>
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tol/tiny_obj_loader.h>
 
 
 
-Mesh::Mesh(const MeshData& meshData) : 
+Mesh::Mesh(const MeshData& meshData, glm::vec3 albedo, int32_t textureIndex) : 
     physicalDevice(meshData.physicalDevice), device(meshData.device), queueFamilyIndices(meshData.queueFamilyIndices),
-    transferQueue(meshData.transferQueue), transferCommandPool(meshData.transferCommandPool)
+    transferQueue(meshData.transferQueue), transferCommandPool(meshData.transferCommandPool),
+    material(albedo, textureIndex)
 {
     if (std::holds_alternative<RawMesh>(meshData.source)) {
         const auto& [vertices, indices] = std::get<RawMesh>(meshData.source);  
@@ -29,7 +29,14 @@ Mesh::Mesh(const MeshData& meshData) :
     LOG_TRACE_S("Mesh loaded (" << indexCount << " indices)");
 }
 
-void Mesh::draw(VkCommandBuffer commandBuffer) const{
+int32_t Mesh::getTextureIndex() const{ return material.getTextureIndex(); }
+
+void Mesh::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const{
+    uint32_t textureIndex = this->getTextureIndex();
+
+    vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int32_t), &textureIndex);
+
+
     VkDeviceSize offsets[] = { 0 };
 
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, offsets);

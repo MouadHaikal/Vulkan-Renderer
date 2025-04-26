@@ -51,11 +51,15 @@ struct UniformBufferObject {
 
 namespace utils {
 
-    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice physicalDevice);
-
     VkCommandBuffer beginSingleTimeCommands(VkCommandPool commandPool, VkDevice device);
     void            endSingleTimeCommands(VkCommandBuffer commandBuffer, VkDevice device, VkCommandPool commandPool, VkQueue queue);
 
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice physicalDevice);
+
+    bool hasStencilComponent(VkFormat format);
+
+
+    // Create operations
     void createBuffer(const std::string& name, 
                       VkDeviceSize size, 
                       VkBufferUsageFlags usage,
@@ -72,7 +76,20 @@ namespace utils {
                      VkImage& image, VkDeviceMemory& imageMemory,
                      VkPhysicalDevice physicalDevice, VkDevice device,
                      const QueueFamilyIndices& indices);
+    void createImageView(const std::string& name, 
+                         VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, 
+                         VkImageView& imageView, VkDevice device);
 
+
+    // Transfer operations
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDevice device, VkQueue queue, VkCommandPool commandPool);
+    void copyBufferToImage(VkBuffer buffer, VkImage image, 
+                           uint32_t width, uint32_t height, VkDevice device, 
+                           VkQueue queue, VkCommandPool commandPool);
+
+    // Graphics operations
+    void transitionImageLayout(VkImage image, VkFormat format,
+                               VkImageLayout oldLayout, VkImageLayout newLayout,
+                               VkDevice device, VkQueue queue, VkCommandPool commandPool);
 
 }

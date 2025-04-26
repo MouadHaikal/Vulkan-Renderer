@@ -2,26 +2,30 @@
 
 #include <utilities.hpp>
 
+#include <material.hpp>
+
 
 using RawMesh = std::pair<std::vector<Vertex>, std::vector<uint32_t>>;
 
 struct MeshData {
     std::variant<std::string, RawMesh> source;
 
-    VkPhysicalDevice physicalDevice;
-    VkDevice         device;
+    VkPhysicalDevice   physicalDevice;
+    VkDevice           device;
 
     QueueFamilyIndices queueFamilyIndices;
 
-    VkQueue          transferQueue;
-    VkCommandPool    transferCommandPool;
+    VkQueue            transferQueue;
+    VkCommandPool      transferCommandPool;
 };
 
 class Mesh{
 public:
-    Mesh(const MeshData& meshData);
+    Mesh(const MeshData& meshData, glm::vec3 albedo = glm::vec3(0.5f), int32_t textureIndex = -1);
 
-    void draw(VkCommandBuffer commandBuffer) const;
+    int32_t getTextureIndex() const;
+
+    void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
 
     void cleanup();
         
@@ -43,6 +47,8 @@ private:
     uint32_t           indexCount;
 
     glm::mat4          modelMatrix;     // Currently unused
+    
+    Material           material;
 
 
     uint32_t loadModel(const std::string& modelPath);

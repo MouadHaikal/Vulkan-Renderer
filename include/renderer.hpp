@@ -1,8 +1,9 @@
 #pragma once
 
-#include <memory>
 #include <utilities.hpp>
+
 #include <mesh.hpp>
+#include <texture.hpp>
 
 
 #define MODEL         "../assets/models/viking_room.obj"
@@ -73,19 +74,10 @@ private:
     VkDeviceMemory               depthImageMemory;
     VkImageView                  depthImageView;
 
-    VkImage                      textureImage;
-    VkDeviceMemory               textureImageMemory;
-    VkImageView                  textureImageView;
     VkSampler                    textureSampler;
 
-    std::vector<std::unique_ptr<Mesh>> meshes; 
-
-    // std::vector<Vertex>          vertices;
-    // std::vector<uint32_t>        vertexIndices;
-    // VkBuffer                     vertexBuffer;
-    // VkDeviceMemory               vertexBufferMemory;
-    // VkBuffer                     indexBuffer;
-    // VkDeviceMemory               indexBufferMemory;
+    std::vector<std::unique_ptr<Texture>> textures;
+    std::vector<std::unique_ptr<Mesh>>    meshes; 
 
     std::vector<VkBuffer>        uniformBuffers;
     std::vector<VkDeviceMemory>  uniformBuffersMemory;
@@ -107,30 +99,36 @@ private:
 
     //==================================Main Functions==================================
     void createVulkanInstance();
+
     void createSurface();
+
     void pickPhysicalDevice();
     void createLogicalDevice();
+
     void createSwapchain();
     void createSwapchainImageViews();
-    void createRenderPass();
-    void createDescriptorSetLayout();
-    void createGraphicsPipeline();
+
     void createCommandPools();
-    void createDepthResources();
-    void createFramebuffers();
-    void createTextureImage();
-    void createTextureImageView();
+
+    void createTextures();
     void createTextureSampler();
 
-    void loadMeshes();
-    // void loadModel();
-    // void createVertexBuffer();
-    // void createIndexBuffer();
+    void createDescriptorSetLayout();
+    void createRenderPass();
+    void createGraphicsPipeline();
+
+    void createDepthResources();
+    void createFramebuffers();
+
+    void createMeshes();
     void createUniformBuffers();
+
     void createDescriptorPool();
     void createDescriptorSets();
+
     void createGraphicsCommandBuffers();
     void createSyncObjects();
+
 
     void recreateSwapchain();
     void cleanupSwapchain();
@@ -177,7 +175,6 @@ private:
     bool checkValidationLayerSupport();
     bool checkDeviceExtensionSupport(VkPhysicalDevice device);
     int  rateDeviceSuitability(VkPhysicalDevice device);
-    bool hasStencilComponent(VkFormat format);
 
 
     //---Choose---------------------------------------------------------------------------
@@ -188,23 +185,14 @@ private:
 
     //---Create---------------------------------------------------------------------------
     VkShaderModule createShaderModule(const std::string& name, const std::vector<char> &code);
-    void           createImageView(const std::string& name, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, VkImageView& imageView);
 
 
     //---Modify---------------------------------------------------------------------------
     void updateUniformBuffer(uint32_t frame);
-    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-
-
-    //---Copy-----------------------------------------------------------------------------
-    // void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
 
     //---Commands-------------------------------------------------------------------------
-    void            recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-    // VkCommandBuffer beginSingleTimeCommands(VkCommandPool &commandPool);
-    // void            endSingleTimeCommands(VkCommandBuffer &commandBuffer, VkCommandPool &commandPool, VkQueue &queue);
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
 
     //---Validation-----------------------------------------------------------------------
