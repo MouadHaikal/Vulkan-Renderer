@@ -24,8 +24,8 @@ Once you have installed all the required dependencies, you can build and run the
 
 1. Clone this repository:
    ```sh
-   git clone https://github.com/MouadHaikal/VulkanApp
-   cd VulkanApp
+   git clone https://github.com/MouadHaikal/Vulkan-Renderer
+   cd Vulkan-Renderer
    ```
 
 2. Make the build script executable (if it isn't already):
