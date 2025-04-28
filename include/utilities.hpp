@@ -26,13 +26,13 @@ struct SwapchainSupportDetails {
 
 struct Vertex {
     glm::vec3 pos;
-    glm::vec3 color;
+    // glm::vec3 color;
     glm::vec2 texCoord;
 
     bool operator==(const Vertex& other) const;
 
     static VkVertexInputBindingDescription                  getBindingDescription();
-    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
+    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions();
 };
 
 namespace std {
@@ -43,9 +43,31 @@ namespace std {
 
 
 struct UniformBufferObject {
-    alignas(16) glm::mat4 model;
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 proj;
+};
+
+
+struct VulkanContext {
+    VkPhysicalDevice   physicalDevice;
+    VkDevice           device;
+
+    QueueFamilyIndices queueFamilyIndices;
+
+    VkQueue            graphicsQueue;
+    VkCommandPool      graphicsCommandPool;
+
+    VkQueue            transferQueue;
+    VkCommandPool      transferCommandPool;
+};
+
+struct VertexPushConstant {
+    alignas(16) glm::mat4 modelMatrix;
+};
+
+struct FragmentPushConstant {
+    alignas(4)  int       textureIndex;
+    alignas(16) glm::vec3 albedoColor;
 };
 
 

@@ -6,37 +6,38 @@
 #include <tol/tiny_obj_loader.h>
 
 
+VulkanContext Mesh::context;
 
-Mesh::Mesh(const MeshData& meshData, glm::vec3 albedo, int32_t textureIndex) : 
-    physicalDevice(meshData.physicalDevice), device(meshData.device), queueFamilyIndices(meshData.queueFamilyIndices),
-    transferQueue(meshData.transferQueue), transferCommandPool(meshData.transferCommandPool),
-    material(albedo, textureIndex)
-{
-    if (std::holds_alternative<RawMesh>(meshData.source)) {
-        const auto& [vertices, indices] = std::get<RawMesh>(meshData.source);  
 
-        indexCount = static_cast<uint32_t>(indices.size());
+void Mesh::setContext(const VulkanContext& ctx){ context = ctx; }
+
+Mesh::Mesh(std::variant<std::string, RawMesh> source) {
+    if (std::holds_alternative<RawMesh>(source)) {
+        const auto& [vertices, indices] = std::get<RawMesh>(source);  
+
+        indexCount = indices.size();
 
         createVertexBuffer(vertices);
         createIndexBuffer(indices);
 
     } else {
-        const std::string& modelPath = std::get<std::string>(meshData.source);
+        const std::string& modelPath = std::get<std::string>(source);
 
         indexCount = loadModel(modelPath);
     }
 
-    LOG_TRACE_S("Mesh loaded (" << indexCount << " indices)");
+    LOG_DEBUG_S("Mesh loaded (" << indexCount/3 << " triangles)");
 }
 
-int32_t Mesh::getTextureIndex() const{ return material.getTextureIndex(); }
 
-void Mesh::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const{
-    uint32_t textureIndex = this->getTextureIndex();
+void Mesh::pushInfo(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const{
+    VertexPushConstant vertexPC;
+    vertexPC.modelMatrix = modelMatrix;
 
-    vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int32_t), &textureIndex);
+    vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VertexPushConstant), &vertexPC);
+}
 
-
+void Mesh::draw(VkCommandBuffer commandBuffer) const{
     VkDeviceSize offsets[] = { 0 };
 
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, offsets);
@@ -45,17 +46,9 @@ void Mesh::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) 
     vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
 }
 
-void Mesh::cleanup(){
-    vkDestroyBuffer(device, indexBuffer, nullptr);
-    vkFreeMemory(device, indexBufferMemory, nullptr);
 
-    vkDestroyBuffer(device, vertexBuffer, nullptr);
-    vkFreeMemory(device, vertexBufferMemory, nullptr);
-}
-
-
-uint32_t Mesh::loadModel(const std::string& modelPath){
-    std::vector<Vertex> vertices;
+size_t Mesh::loadModel(const std::string& modelPath){
+    std::vector<Vertex>   vertices;
     std::vector<uint32_t> indices;
 
 
@@ -86,8 +79,6 @@ uint32_t Mesh::loadModel(const std::string& modelPath){
                 1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
             };
 
-            vertex.color = { 1.0f, 1.0f, 1.0f };
-
 
             if (uniqueVertices.count(vertex) == 0) {
                 uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
@@ -101,7 +92,7 @@ uint32_t Mesh::loadModel(const std::string& modelPath){
     createVertexBuffer(vertices);
     createIndexBuffer(indices);
 
-    return static_cast<uint32_t>(indices.size());
+    return indices.size();
 }
 
 void Mesh::createVertexBuffer(const std::vector<Vertex>& vertices){
@@ -114,26 +105,26 @@ void Mesh::createVertexBuffer(const std::vector<Vertex>& vertices){
                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                         stagingBuffer, stagingBufferMemory,
-                        physicalDevice, device, queueFamilyIndices
+                        context.physicalDevice, context.device, context.queueFamilyIndices
     );
 
     void* data;
-    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(context.device, stagingBufferMemory, 0, bufferSize, 0, &data);
         memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));
-    vkUnmapMemory(device, stagingBufferMemory);
+    vkUnmapMemory(context.device, stagingBufferMemory);
 
     utils::createBuffer("vertex",
                         bufferSize,
                         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                         vertexBuffer, vertexBufferMemory,
-                        physicalDevice, device, queueFamilyIndices
+                        context.physicalDevice, context.device, context.queueFamilyIndices
     );
 
-    utils::copyBuffer(stagingBuffer, vertexBuffer, bufferSize, device, transferQueue, transferCommandPool);
+    utils::copyBuffer(stagingBuffer, vertexBuffer, bufferSize, context.device, context.transferQueue, context.transferCommandPool);
 
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingBufferMemory, nullptr);
+    vkDestroyBuffer(context.device, stagingBuffer, nullptr);
+    vkFreeMemory(context.device, stagingBufferMemory, nullptr);
 }
 
 void Mesh::createIndexBuffer(const std::vector<uint32_t>& indices){
@@ -146,25 +137,33 @@ void Mesh::createIndexBuffer(const std::vector<uint32_t>& indices){
                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                         stagingBuffer, stagingBufferMemory,
-                        physicalDevice, device, queueFamilyIndices
+                        context.physicalDevice, context.device, context.queueFamilyIndices
     );
 
     void* data;
-    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(context.device, stagingBufferMemory, 0, bufferSize, 0, &data);
         memcpy(data, indices.data(), static_cast<size_t>(bufferSize));
-    vkUnmapMemory(device, stagingBufferMemory);
+    vkUnmapMemory(context.device, stagingBufferMemory);
 
     utils::createBuffer("index",
                         bufferSize,
                         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                         indexBuffer, indexBufferMemory,
-                        physicalDevice, device, queueFamilyIndices
+                        context.physicalDevice, context.device, context.queueFamilyIndices
     );
 
-    utils::copyBuffer(stagingBuffer, indexBuffer, bufferSize, device, transferQueue, transferCommandPool);
+    utils::copyBuffer(stagingBuffer, indexBuffer, bufferSize, context.device, context.transferQueue, context.transferCommandPool);
 
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingBufferMemory, nullptr);
+    vkDestroyBuffer(context.device, stagingBuffer, nullptr);
+    vkFreeMemory(context.device, stagingBufferMemory, nullptr);
 }
 
+
+void Mesh::cleanup(){
+    vkDestroyBuffer(context.device, indexBuffer, nullptr);
+    vkFreeMemory(context.device, indexBufferMemory, nullptr);
+
+    vkDestroyBuffer(context.device, vertexBuffer, nullptr);
+    vkFreeMemory(context.device, vertexBufferMemory, nullptr);
+}

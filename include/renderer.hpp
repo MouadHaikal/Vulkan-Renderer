@@ -1,13 +1,14 @@
 #pragma once
 
-#include <utilities.hpp>
 
-#include <mesh.hpp>
-#include <texture.hpp>
+#include <scene.hpp>
 
 
-#define MODEL         "../assets/models/viking_room.obj"
-#define MODEL_TEXTURE "../assets/textures/viking_room.png"
+#define VIKING_ROOM_MODEL         "../assets/models/viking_room.obj"
+#define VIKING_ROOM_MODEL_TEXTURE "../assets/textures/viking_room.png"
+
+#define ANTEFIX_MODEL         "../assets/models/antefix.obj"
+#define ANTEFIX_MODEL_TEXTURE "../assets/textures/antefix.png"
 
 #define TEXTURE "../assets/textures/texture.jpg"
 
@@ -76,8 +77,7 @@ private:
 
     VkSampler                    textureSampler;
 
-    std::vector<std::unique_ptr<Texture>> textures;
-    std::vector<std::unique_ptr<Mesh>>    meshes; 
+    Scene                        scene;
 
     std::vector<VkBuffer>        uniformBuffers;
     std::vector<VkDeviceMemory>  uniformBuffersMemory;
@@ -110,7 +110,8 @@ private:
 
     void createCommandPools();
 
-    void createTextures();
+    void createScene();
+
     void createTextureSampler();
 
     void createDescriptorSetLayout();
@@ -120,7 +121,6 @@ private:
     void createDepthResources();
     void createFramebuffers();
 
-    void createMeshes();
     void createUniformBuffers();
 
     void createDescriptorPool();

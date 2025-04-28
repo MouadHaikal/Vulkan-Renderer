@@ -1,13 +1,18 @@
+#pragma once
+
 #include <utilities.hpp>
 
 
+constexpr glm::vec3 defaultColor = glm::vec3(0.3);
+
 class Material{
 public:
-    Material(glm::vec3 albedo = glm::vec3(0.5f), int32_t textureIndex = -1);
+    Material(int textureIndex = -1, glm::vec3 albedoColor = defaultColor);
 
-    int32_t getTextureIndex() const;
+    void pushInfo(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
+
 private:
 
-    glm::vec3 albedo;
-    int32_t   textureIndex;
+    glm::vec3 albedoColor;
+    int       textureIndex;
 };

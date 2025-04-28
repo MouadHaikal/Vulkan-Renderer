@@ -16,7 +16,7 @@ void App::init(){
 
     glfwInit();
 
-    initWindow("VulkanApp");
+    initWindow("VullkanRenderer");
 
     renderer.init(window);
 }

@@ -1,7 +1,6 @@
 #include <renderer.hpp>
 
 #include <logger.hpp>
-#include <utility>
 
 
 #define GLM_FORCE_RADIANS
@@ -38,7 +37,9 @@ void Renderer::init(GLFWwindow * appWindow){
     createCommandPools();
     LOG_TRACE("-------------------------------------------------");
 
-    createTextures();
+    createScene();
+    LOG_TRACE("-------------------------------------------------");
+
     createTextureSampler();
     LOG_TRACE("-------------------------------------------------");
 
@@ -49,9 +50,6 @@ void Renderer::init(GLFWwindow * appWindow){
 
     createDepthResources();
     createFramebuffers();
-    LOG_TRACE("-------------------------------------------------");
-
-    createMeshes();
     LOG_TRACE("-------------------------------------------------");
 
     createUniformBuffers();
@@ -141,11 +139,8 @@ void Renderer::cleanup(){
     LOG_TRACE("Cleanup : swapchain");
     cleanupSwapchain();
 
-    LOG_TRACE("Cleanup : textures");
+    LOG_TRACE("Cleanup : sampler");
     vkDestroySampler(device, textureSampler, nullptr);
-    for (auto& texture : textures) {
-        texture->cleanup();
-    }
 
     LOG_TRACE("Cleanup : uniform buffers");
     for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
@@ -162,10 +157,8 @@ void Renderer::cleanup(){
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyRenderPass(device, renderPass, nullptr);
 
-    LOG_TRACE("Cleanup : meshes");
-    for (auto& mesh : meshes) {
-        mesh->cleanup();
-    }
+    LOG_TRACE("Cleanup : scene");
+    scene.cleanup();
 
     LOG_TRACE("Cleanup : sync objects");
     for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
@@ -204,7 +197,7 @@ void Renderer::createVulkanInstance(){
     appInfo.pApplicationName    = "VulkanRenderer";
     appInfo.engineVersion       = VK_MAKE_VERSION(0, 1, 0);
     appInfo.pEngineName         = "Custom Engine";
-    appInfo.apiVersion          = VK_API_VERSION_1_4;
+    appInfo.apiVersion          = VK_API_VERSION_1_3;
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -485,18 +478,21 @@ void Renderer::createRenderPass(){
     );
 }
 
-void Renderer::createTextures(){
-    TextureData data;
-    data.imagePath = MODEL_TEXTURE;
-    data.physicalDevice      = physicalDevice;
-    data.device              = device;
-    data.queueFamilyIndices  = queueFamilyIndices;
-    data.graphicsQueue       = graphicsQueue;
-    data.graphicsCommandPool = graphicsCommandPool;
-    data.transferQueue       = transferQueue;
-    data.transferCommandPool = transferCommandPool;
+void Renderer::createScene(){
+    VulkanContext context;
+    context.physicalDevice      = physicalDevice;
+    context.device              = device;
+    context.queueFamilyIndices  = queueFamilyIndices;
+    context.graphicsQueue       = graphicsQueue;
+    context.graphicsCommandPool = graphicsCommandPool;
+    context.transferQueue       = transferQueue;
+    context.transferCommandPool = transferCommandPool;
 
-    textures.emplace_back(std::make_unique<Texture>(data));
+    Scene::setContext(context);
+
+
+    scene.addTexture("antefix", ANTEFIX_MODEL_TEXTURE);
+    scene.addObject(ANTEFIX_MODEL, "antefix");
 }
 
 void Renderer::createDescriptorSetLayout(){
@@ -516,7 +512,7 @@ void Renderer::createDescriptorSetLayout(){
     VkDescriptorSetLayoutBinding texturesLayoutBinding{};
     texturesLayoutBinding.binding            = 2;
     texturesLayoutBinding.descriptorType     = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    texturesLayoutBinding.descriptorCount    = static_cast<uint32_t>(textures.size()); 
+    texturesLayoutBinding.descriptorCount    = static_cast<uint32_t>(scene.getTextureCount()); 
     texturesLayoutBinding.stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 
@@ -647,17 +643,25 @@ void Renderer::createGraphicsPipeline(){
     
 
     // Pipeline Layout --------------------------------
-    VkPushConstantRange pushConstantRange{};
-    pushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    pushConstantRange.offset     = 0;
-    pushConstantRange.size       = sizeof(int32_t);
+    VkPushConstantRange vertexPushConstantRange{};
+    vertexPushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    vertexPushConstantRange.offset     = 0;
+    vertexPushConstantRange.size       = sizeof(VertexPushConstant);
+
+    VkPushConstantRange fragmentPushConstantRange{};
+    fragmentPushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragmentPushConstantRange.offset     = sizeof(VertexPushConstant);
+    fragmentPushConstantRange.size       = sizeof(FragmentPushConstant);
+
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount         = 1;
     pipelineLayoutInfo.pSetLayouts            = &descriptorSetLayout;
-    pipelineLayoutInfo.pushConstantRangeCount = 1;
-    pipelineLayoutInfo.pPushConstantRanges    = &pushConstantRange;
+    pipelineLayoutInfo.pushConstantRangeCount = 2;
+
+    VkPushConstantRange pushConstantRanges[] =  { vertexPushConstantRange, fragmentPushConstantRange };
+    pipelineLayoutInfo.pPushConstantRanges    = pushConstantRanges;
 
     LOG_RESULT(
         vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout),
@@ -808,44 +812,6 @@ void Renderer::createTextureSampler(){
     );
 }
 
-void Renderer::createMeshes(){
-    MeshData data;
-    data.source              = MODEL;
-    data.physicalDevice      = physicalDevice;
-    data.device              = device;
-    data.queueFamilyIndices  = queueFamilyIndices;
-    data.transferQueue       = transferQueue;
-    data.transferCommandPool = transferCommandPool;
-
-    const std::vector<Vertex> vertices = {
-        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-        {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-
-        {{-0.5f, -0.5f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, -0.5f, -1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, 0.5f, -1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-        {{-0.5f, 0.5f, -1.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
-    };
-
-    const std::vector<uint32_t> indices = {
-        0, 1, 2, 2, 3, 0,
-        4, 5, 6, 6, 7, 4
-    };
-
-    MeshData data2;
-    data2.source              = std::make_pair(vertices, indices);
-    data2.physicalDevice      = physicalDevice;
-    data2.device              = device;
-    data2.queueFamilyIndices  = queueFamilyIndices;
-    data2.transferQueue       = transferQueue;
-    data2.transferCommandPool = transferCommandPool;
-
-    meshes.emplace_back(std::make_unique<Mesh>(data, glm::vec3(1.0), 0));
-    meshes.emplace_back(std::make_unique<Mesh>(data2, glm::vec3(1.0), 0));
-}
-
 void Renderer::createUniformBuffers(){
     VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
@@ -875,7 +841,7 @@ void Renderer::createDescriptorPool(){
     poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
     poolSizes[2].type            = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    poolSizes[2].descriptorCount = static_cast<uint32_t>(textures.size() * MAX_FRAMES_IN_FLIGHT);
+    poolSizes[2].descriptorCount = static_cast<uint32_t>(scene.getTextureCount() * MAX_FRAMES_IN_FLIGHT);
 
 
     VkDescriptorPoolCreateInfo createInfo{};
@@ -920,11 +886,11 @@ void Renderer::createDescriptorSets(){
         samplerInfo.imageView   = VK_NULL_HANDLE;
         samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-        std::vector<VkDescriptorImageInfo> texturesInfos(textures.size());
-        for (size_t j=0; j < textures.size(); ++j) {
-            texturesInfos[j].imageView   = textures[j]->getImageView();
-            texturesInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            texturesInfos[j].sampler     = VK_NULL_HANDLE;
+        std::vector<VkDescriptorImageInfo> texturesInfo(scene.getTextureCount());
+        for (size_t j=0; j < scene.getTextureCount(); ++j) {
+            texturesInfo[j].imageView   = scene.getTextureImageView(j);
+            texturesInfo[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            texturesInfo[j].sampler     = VK_NULL_HANDLE;
         }
 
 
@@ -951,8 +917,8 @@ void Renderer::createDescriptorSets(){
         descriptorWrites[2].dstBinding      = 2;
         descriptorWrites[2].dstArrayElement = 0;
         descriptorWrites[2].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        descriptorWrites[2].descriptorCount = static_cast<uint32_t>(texturesInfos.size());
-        descriptorWrites[2].pImageInfo      = texturesInfos.data();
+        descriptorWrites[2].descriptorCount = static_cast<uint32_t>(texturesInfo.size());
+        descriptorWrites[2].pImageInfo      = texturesInfo.data();
 
 
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
@@ -1442,9 +1408,7 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
-        for (const auto& mesh : meshes) {
-            mesh->draw(commandBuffer, pipelineLayout);
-        }
+        scene.draw(commandBuffer, pipelineLayout);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -1464,8 +1428,7 @@ void Renderer::updateUniformBuffer(uint32_t frame){
 
 
     UniformBufferObject ubo{};
-    ubo.model = glm::mat4(1.0f);
-    ubo.view  = glm::lookAt(glm::vec3(2.0f, 2.0f + glm::sin(time), 1.0f + glm::cos(time)), 
+    ubo.view  = glm::lookAt(glm::vec3(0.2f, 0.2f + glm::sin(time), 0.1f + 0.5*glm::cos(time)), 
                             glm::vec3(0.0f, 0.0f, 0.0f), 
                             glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj  = glm::perspective(glm::radians(60.0f),

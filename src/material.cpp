@@ -1,6 +1,13 @@
 #include <material.hpp>
 
 
-Material::Material(glm::vec3 albedo, int32_t textureIndex) : albedo(albedo), textureIndex(textureIndex){}
+Material::Material(int textureIndex, glm::vec3 albedoColor) : textureIndex(textureIndex), albedoColor(albedoColor){}
 
-int32_t Material::getTextureIndex() const{ return textureIndex; }
+
+void Material::pushInfo(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const{
+    FragmentPushConstant fragmentPC;
+    fragmentPC.textureIndex = textureIndex;
+    fragmentPC.albedoColor  = albedoColor;
+
+    vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(VertexPushConstant), sizeof(FragmentPushConstant), &fragmentPC);
+}
