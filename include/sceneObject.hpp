@@ -10,6 +10,8 @@ public:
 
     void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
 
+    glm::mat4* getModelMatrix();
+
     void cleanup();
 
 private:

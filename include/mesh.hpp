@@ -8,6 +8,9 @@ using RawMesh = std::pair<std::vector<Vertex>, std::vector<uint32_t>>;
 
 class Mesh{
 public:
+    glm::mat4 modelMatrix = glm::mat4(1.0f);
+
+
     static void setContext(const VulkanContext& ctx);
 
 
@@ -21,8 +24,6 @@ public:
         
 private:
     static VulkanContext context;
-
-    glm::mat4          modelMatrix = glm::mat4(1.0f);
 
 
     VkBuffer           vertexBuffer;

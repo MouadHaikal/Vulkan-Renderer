@@ -14,6 +14,9 @@ void SceneObject::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineL
 }
 
 
+glm::mat4* SceneObject::getModelMatrix(){ return &mesh.modelMatrix; }
+
+
 void SceneObject::cleanup(){
     mesh.cleanup();
 }

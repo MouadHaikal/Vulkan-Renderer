@@ -136,6 +136,9 @@ void Renderer::cleanup(){
 
     LOG_DEBUG("Renderer cleanup");
 
+    LOG_TRACE("Cleanup : scene");
+    scene.cleanup();
+
     LOG_TRACE("Cleanup : swapchain");
     cleanupSwapchain();
 
@@ -156,9 +159,6 @@ void Renderer::cleanup(){
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyRenderPass(device, renderPass, nullptr);
-
-    LOG_TRACE("Cleanup : scene");
-    scene.cleanup();
 
     LOG_TRACE("Cleanup : sync objects");
     for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
@@ -492,7 +492,30 @@ void Renderer::createScene(){
 
 
     scene.addTexture("antefix", ANTEFIX_MODEL_TEXTURE);
-    scene.addObject(ANTEFIX_MODEL, "antefix");
+    auto antefixModelMatrix = scene.addObject(ANTEFIX_MODEL, "antefix");
+
+    std::vector<Vertex> planeVertices = {
+        {{1.f, 1.f, 0.f}, {1.f, 1.f}},
+        {{1.f,-1.f, 0.f}, {1.f, 0.f}},
+        {{-1.f,-1.f, 0.f}, {0.f, 0.f}},
+        {{-1.f, 1.f, 0.f}, {0.f, 1.f}},
+    };
+
+    // std::vector<uint32_t> topPlaneIndices = {
+    //     0, 1, 2, 2, 3, 0
+    // };
+
+    std::vector<uint32_t> bottomPlaneIndices = {
+        0, 3, 2, 2, 1, 0
+    };
+
+    glm::vec3 planeColor = glm::vec3(.02f, .02f, .02f);
+
+    // auto topPlaneModelMatrix = scene.addObject(std::make_pair(planeVertices, topPlaneIndices), "None", planeColor);
+    // *topPlaneModelMatrix     = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, .5f));
+
+    auto bottomPlaneModelMatrix = scene.addObject(std::make_pair(planeVertices, bottomPlaneIndices), "None", planeColor);
+    *bottomPlaneModelMatrix     = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -.5f));
 }
 
 void Renderer::createDescriptorSetLayout(){
@@ -1428,7 +1451,7 @@ void Renderer::updateUniformBuffer(uint32_t frame){
 
 
     UniformBufferObject ubo{};
-    ubo.view  = glm::lookAt(glm::vec3(0.2f, 0.2f + glm::sin(time), 0.1f + 0.5*glm::cos(time)), 
+    ubo.view  = glm::lookAt(glm::vec3(0.f, -.5f, 1.f + 0.1f*glm::sin(time)), 
                             glm::vec3(0.0f, 0.0f, 0.0f), 
                             glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj  = glm::perspective(glm::radians(60.0f),

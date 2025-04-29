@@ -1,6 +1,7 @@
 #include <app.hpp>
 
 // Issues:
+// ** Need to handle the case where the scene has no textures
 // ** App uses Vulkan 1.4 which might not be the latest version installed in end user machine
 // FIXED: Transfer command pool cleanup in the case of it being the same as the graphics queue
 // ** Due to relative file paths in Renderer (shader files) executable must be ran from ${PROJECT_ROOT}/bin

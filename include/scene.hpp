@@ -8,8 +8,8 @@ class Scene{
 public:
     static void setContext(const VulkanContext& ctx);
 
-    void addTexture(const std::string& name, const std::string& path);
-    void addObject(std::variant<std::string, RawMesh> source, const std::string& textureName = "None", glm::vec3 albedoColor = defaultColor);
+    void       addTexture(const std::string& name, const std::string& path);
+    glm::mat4* addObject(std::variant<std::string, RawMesh> source, const std::string& textureName = "None", glm::vec3 albedoColor = defaultColor);
 
     size_t      getTextureCount() const;
     VkImageView getTextureImageView(size_t index) const;

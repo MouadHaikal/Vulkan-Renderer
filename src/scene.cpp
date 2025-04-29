@@ -15,8 +15,9 @@ void Scene::addTexture(const std::string& name, const std::string& path){
     textureManager.addTexture(name, path);
 }
 
-void Scene::addObject(std::variant<std::string, RawMesh> source, const std::string& textureName, glm::vec3 albedoColor){
+glm::mat4* Scene::addObject(std::variant<std::string, RawMesh> source, const std::string& textureName, glm::vec3 albedoColor){
     objects.emplace_back(source, textureManager.getTextureIndex(textureName), albedoColor);
+    return objects.back().getModelMatrix();
 }
 
 
