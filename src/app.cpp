@@ -1,8 +1,11 @@
 #include <app.hpp>
+
 #include <logger.hpp>
 
 
-// Main Functions
+const char* windowTitle = "VullkanRenderer"; 
+
+
 void App::run(){
     init();
 
@@ -16,7 +19,9 @@ void App::init(){
 
     glfwInit();
 
-    initWindow("VullkanRenderer");
+    initWindow(windowTitle);
+
+    inputHandler.bindWindow(window);
 
     renderer.init(window);
 }
@@ -26,6 +31,13 @@ void App::mainLoop(){
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
+
+        float currentFrame = static_cast<float>(glfwGetTime());
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
+        renderer.processInput(inputHandler.getInputData(), deltaTime);
+
         renderer.drawFrame();
     }
 }
@@ -41,11 +53,12 @@ void App::cleanup(){
 }
 
 
-// Helper Functions
 void App::initWindow(const char* title){
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     window = glfwCreateWindow(WIDTH, HEIGHT, title, nullptr, nullptr);
+
 
     glfwSetWindowUserPointer(window, &renderer);
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);

@@ -12,17 +12,20 @@ public:
     void run();
 
 private:
-    // Variables
+
     GLFWwindow * window;
-    Renderer renderer;
+    Renderer     renderer;
+    InputHandler inputHandler;
+
+    float deltaTime    = 0.f;
+    float lastFrame    = 0.f;
 
 
-    // Main Functions
     void init();
     void mainLoop();
     void cleanup();
-    
-    // Helper Functions
+
+
     void initWindow(const char* title);
     static void framebufferResizeCallback(GLFWwindow * window, int width, int height);
 };

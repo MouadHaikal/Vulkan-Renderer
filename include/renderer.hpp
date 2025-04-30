@@ -2,6 +2,8 @@
 
 
 #include <scene.hpp>
+#include <camera.hpp>
+#include <inputHandler.hpp>
 
 
 #define VIKING_ROOM_MODEL         "../assets/models/viking_room.obj"
@@ -32,6 +34,8 @@ public:
 
 
     void init(GLFWwindow * appWindow);
+
+    void processInput(InputData input, float deltaTime);
 
     void drawFrame();
 
@@ -78,6 +82,7 @@ private:
     VkSampler                    textureSampler;
 
     Scene                        scene;
+    Camera                       camera;
 
     std::vector<VkBuffer>        uniformBuffers;
     std::vector<VkDeviceMemory>  uniformBuffersMemory;

@@ -3,12 +3,6 @@
 #include <logger.hpp>
 
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
-
 
 //==================================Main Functions==================================
 void Renderer::init(GLFWwindow * appWindow){
@@ -64,6 +58,11 @@ void Renderer::init(GLFWwindow * appWindow){
 
     createSyncObjects();
     LOG_TRACE("-------------------------------------------------");
+}
+
+void Renderer::processInput(InputData input, float deltaTime){
+    camera.move(input.movement, deltaTime);
+    camera.rotate(input.mouseOffset.x, input.mouseOffset.y);
 }
 
 void Renderer::drawFrame(){
@@ -491,19 +490,16 @@ void Renderer::createScene(){
     Scene::setContext(context);
 
 
-    scene.addTexture("antefix", ANTEFIX_MODEL_TEXTURE);
-    auto antefixModelMatrix = scene.addObject(ANTEFIX_MODEL, "antefix");
-
     std::vector<Vertex> planeVertices = {
-        {{1.f, 1.f, 0.f}, {1.f, 1.f}},
-        {{1.f,-1.f, 0.f}, {1.f, 0.f}},
-        {{-1.f,-1.f, 0.f}, {0.f, 0.f}},
-        {{-1.f, 1.f, 0.f}, {0.f, 1.f}},
+        {{10.f, 10.f, 0.f}, {1.f, 1.f}},
+        {{10.f,-10.f, 0.f}, {1.f, 0.f}},
+        {{-10.f,-10.f, 0.f}, {0.f, 0.f}},
+        {{-10.f, 10.f, 0.f}, {0.f, 1.f}},
     };
 
-    // std::vector<uint32_t> topPlaneIndices = {
-    //     0, 1, 2, 2, 3, 0
-    // };
+    std::vector<uint32_t> topPlaneIndices = {
+        0, 1, 2, 2, 3, 0
+    };
 
     std::vector<uint32_t> bottomPlaneIndices = {
         0, 3, 2, 2, 1, 0
@@ -511,11 +507,28 @@ void Renderer::createScene(){
 
     glm::vec3 planeColor = glm::vec3(.02f, .02f, .02f);
 
-    // auto topPlaneModelMatrix = scene.addObject(std::make_pair(planeVertices, topPlaneIndices), "None", planeColor);
-    // *topPlaneModelMatrix     = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, .5f));
 
-    auto bottomPlaneModelMatrix = scene.addObject(std::make_pair(planeVertices, bottomPlaneIndices), "None", planeColor);
-    *bottomPlaneModelMatrix     = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -.5f));
+    scene.addTexture("antefix", ANTEFIX_MODEL_TEXTURE);
+    scene.addTexture("viking", VIKING_ROOM_MODEL_TEXTURE);
+
+
+    auto pTopPlaneModelMatrix = scene.addObject(std::make_pair(planeVertices, topPlaneIndices), "None", planeColor);
+    *pTopPlaneModelMatrix     = glm::translate(*pTopPlaneModelMatrix, glm::vec3(0.f, 0.f, 10.f));
+
+    auto pBottomPlaneModelMatrix = scene.addObject(std::make_pair(planeVertices, bottomPlaneIndices), "None", planeColor);
+    *pBottomPlaneModelMatrix     = glm::translate(*pBottomPlaneModelMatrix, glm::vec3(0.f, 0.f, -.5f));
+
+
+    auto pAntefixModelMatrix = scene.addObject(ANTEFIX_MODEL, "antefix");
+    auto pVikingModelMatrix = scene.addObject(VIKING_ROOM_MODEL, "viking");
+
+    *pAntefixModelMatrix = glm::translate(*pAntefixModelMatrix, glm::vec3(4.f, .0f, -.5f));
+    *pAntefixModelMatrix = glm::scale(*pAntefixModelMatrix, glm::vec3(20.f));
+    *pAntefixModelMatrix = glm::rotate(*pAntefixModelMatrix, glm::radians(-30.f),glm::vec3(0.f, 0.f, 1.f));
+
+    *pVikingModelMatrix = glm::translate(*pVikingModelMatrix, glm::vec3(-4.f, .0f, -.2f));
+    *pVikingModelMatrix = glm::scale(*pVikingModelMatrix, glm::vec3(3.f));
+    *pVikingModelMatrix = glm::rotate(*pVikingModelMatrix, glm::radians(-90.f), glm::vec3(0.f, 0.f, 1.f));
 }
 
 void Renderer::createDescriptorSetLayout(){
@@ -1443,21 +1456,10 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 }
 
 void Renderer::updateUniformBuffer(uint32_t frame){
-    static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
-
-    UniformBufferObject ubo{};
-    ubo.view  = glm::lookAt(glm::vec3(0.f, -.5f, 1.f + 0.1f*glm::sin(time)), 
-                            glm::vec3(0.0f, 0.0f, 0.0f), 
-                            glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj  = glm::perspective(glm::radians(60.0f),
-                                 swapchainExtent.width / (float) swapchainExtent.height,
-                                 0.1f, 
-                                 10.0f);
+    UniformBufferObject ubo{
+        camera.getViewMatrix(),
+        camera.getProjMatrix(swapchainExtent.width / (float) swapchainExtent.height)
+    };
 
     // The Y axis is pointing down in Vulkan (glm was made for OpenGL - Y axis pointing up)
     // Must flip rasterizer front face so that backface culling works as intended
