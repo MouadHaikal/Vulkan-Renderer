@@ -75,6 +75,13 @@ private:
 
     std::vector<VkFramebuffer>   swapchainFramebuffers;
 
+    VkImage                      colorImage;
+    VkDeviceMemory               colorImageMemory;
+    VkImageView                  colorImageView;
+
+    VkSampleCountFlagBits        msaaSamples;
+    float                        minSampleShading = .2f;
+
     VkImage                      depthImage;
     VkDeviceMemory               depthImageMemory;
     VkImageView                  depthImageView;
@@ -119,7 +126,9 @@ private:
     void createRenderPass();
     void createGraphicsPipeline();
 
+    void createColorResources();
     void createDepthResources();
+
     void createFramebuffers();
 
     void createUniformBuffers();
@@ -169,6 +178,7 @@ private:
     static std::vector<char> readFile(const std::string &fileName);
     VkFormat                 findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
     VkFormat                 findDepthFormat();
+    VkSampleCountFlagBits    getMaxUsableSampleCount();
 
 
     //---Check----------------------------------------------------------------------------

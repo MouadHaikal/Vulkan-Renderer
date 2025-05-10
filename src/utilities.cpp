@@ -156,10 +156,11 @@ void utils::createBuffer(const std::string& name,
 }
 
 void utils::createImage(const std::string& name, 
-                        uint32_t width, uint32_t height, uint32_t mipLevels,
+                        uint32_t width, uint32_t height,
+                        uint32_t mipLevels, VkSampleCountFlagBits sampleCount,
                         VkFormat format, VkImageTiling tiling, 
                         VkImageUsageFlags usage, 
-                        VkMemoryPropertyFlags properties,
+                        VkMemoryPropertyFlags properties, 
                         VkImage& image, VkDeviceMemory& imageMemory,
                         VkPhysicalDevice physicalDevice, VkDevice device,
                         const QueueFamilyIndices& indices
@@ -176,7 +177,7 @@ void utils::createImage(const std::string& name,
     createInfo.tiling        = tiling;
     createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     createInfo.usage         = usage;
-    createInfo.samples       = VK_SAMPLE_COUNT_1_BIT;
+    createInfo.samples       = sampleCount;
 
     uint32_t queueFamilyIndices[] = {
         indices.graphicsFamily.value(),

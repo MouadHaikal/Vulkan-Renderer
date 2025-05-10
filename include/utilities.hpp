@@ -93,7 +93,8 @@ namespace utils {
                       const QueueFamilyIndices& indices);
 
     void createImage(const std::string& name, 
-                     uint32_t width, uint32_t height, uint32_t mipLevels,
+                     uint32_t width, uint32_t height,
+                     uint32_t mipLevels, VkSampleCountFlagBits sampleCount,
                      VkFormat format, VkImageTiling tiling, 
                      VkImageUsageFlags usage, 
                      VkMemoryPropertyFlags properties, 
