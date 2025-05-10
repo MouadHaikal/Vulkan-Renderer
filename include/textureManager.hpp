@@ -10,16 +10,19 @@ public:
 
 
     struct Texture{
-        VkImage        image       = VK_NULL_HANDLE;
-        VkDeviceMemory imageMemory = VK_NULL_HANDLE;
-        VkImageView    imageView   = VK_NULL_HANDLE;
+        VkImage        image;
+        VkDeviceMemory imageMemory;
+        VkImageView    imageView;
+        VkSampler      sampler;
     };
 
     void addTexture(const std::string& name, const std::string& path);
 
     int         getTextureIndex(const std::string& name) const;
     size_t      getTextureCount() const;
+
     VkImageView getTextureImageView(size_t index) const;
+    VkSampler   getTextureSampler(size_t index) const;
 
 
     void cleanup();
@@ -34,4 +37,6 @@ private:
 
 
     Texture createTexture(const std::string& imagePath);
+    void generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+    void createTextureSampler(uint32_t mipLevels, VkSampler& textureSampler);
 };

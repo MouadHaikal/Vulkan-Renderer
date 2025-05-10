@@ -29,7 +29,6 @@ struct SwapchainSupportDetails {
 
 struct Vertex {
     glm::vec3 pos;
-    // glm::vec3 color;
     glm::vec2 texCoord;
 
     bool operator==(const Vertex& other) const;
@@ -94,7 +93,7 @@ namespace utils {
                       const QueueFamilyIndices& indices);
 
     void createImage(const std::string& name, 
-                     uint32_t width, uint32_t height, 
+                     uint32_t width, uint32_t height, uint32_t mipLevels,
                      VkFormat format, VkImageTiling tiling, 
                      VkImageUsageFlags usage, 
                      VkMemoryPropertyFlags properties, 
@@ -102,7 +101,8 @@ namespace utils {
                      VkPhysicalDevice physicalDevice, VkDevice device,
                      const QueueFamilyIndices& indices);
     void createImageView(const std::string& name, 
-                         VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, 
+                         VkImage image, VkFormat format,
+                         uint32_t mipLevels, VkImageAspectFlags aspectFlags, 
                          VkImageView& imageView, VkDevice device);
 
 
@@ -113,7 +113,7 @@ namespace utils {
                            VkQueue queue, VkCommandPool commandPool);
 
     // Graphics operations
-    void transitionImageLayout(VkImage image, VkFormat format,
+    void transitionImageLayout(VkImage image, VkFormat format, uint32_t mipLevels,
                                VkImageLayout oldLayout, VkImageLayout newLayout,
                                VkDevice device, VkQueue queue, VkCommandPool commandPool);
 

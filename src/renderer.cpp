@@ -34,9 +34,6 @@ void Renderer::init(GLFWwindow * appWindow){
     createScene();
     LOG_TRACE("-------------------------------------------------");
 
-    createTextureSampler();
-    LOG_TRACE("-------------------------------------------------");
-
     createDescriptorSetLayout();
     createRenderPass();
     createGraphicsPipeline();
@@ -140,9 +137,6 @@ void Renderer::cleanup(){
 
     LOG_TRACE("Cleanup : swapchain");
     cleanupSwapchain();
-
-    LOG_TRACE("Cleanup : sampler");
-    vkDestroySampler(device, textureSampler, nullptr);
 
     LOG_TRACE("Cleanup : uniform buffers");
     for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
@@ -260,15 +254,15 @@ void Renderer::pickPhysicalDevice(){
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-    std::multimap<int, VkPhysicalDevice> candidates;
+    std::multimap<ssize_t, VkPhysicalDevice> candidates;
 
     for (const auto& device : devices){
-        int score = rateDeviceSuitability(device);
+        ssize_t score = rateDeviceSuitability(device);
         candidates.insert(std::make_pair(score, device));
     }
 
 
-    if (candidates.rbegin()->first < 0) {
+    if (candidates.rbegin()->first == -1) {
         LOG_FATAL("Failed to find suitable GPU");
     } else {
         physicalDevice = candidates.rbegin()->second;
@@ -400,7 +394,7 @@ void Renderer::createSwapchainImageViews(){
         utils::createImageView("swapchain", 
                                swapchainImages[i], 
                                swapchainImageFormat,
-                               VK_IMAGE_ASPECT_COLOR_BIT,
+                               1, VK_IMAGE_ASPECT_COLOR_BIT,
                                swapchainImageViews[i], device
         );
     }
@@ -537,22 +531,15 @@ void Renderer::createDescriptorSetLayout(){
     uboLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     uboLayoutBinding.descriptorCount = 1;
     uboLayoutBinding.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
-
-    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-    samplerLayoutBinding.binding            = 1;
-    samplerLayoutBinding.descriptorType     = VK_DESCRIPTOR_TYPE_SAMPLER;
-    samplerLayoutBinding.descriptorCount    = 1;
-    samplerLayoutBinding.pImmutableSamplers = nullptr;
-    samplerLayoutBinding.stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    VkDescriptorSetLayoutBinding texturesLayoutBinding{};
-    texturesLayoutBinding.binding            = 2;
-    texturesLayoutBinding.descriptorType     = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    texturesLayoutBinding.descriptorCount    = static_cast<uint32_t>(scene.getTextureCount()); 
-    texturesLayoutBinding.stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT;
+    
+    VkDescriptorSetLayoutBinding texturesLayoutBinding{};   // Combined image samplers
+    texturesLayoutBinding.binding         = 1;
+    texturesLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    texturesLayoutBinding.descriptorCount = static_cast<uint32_t>(scene.getTextureCount());
+    texturesLayoutBinding.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 
-    std::array<VkDescriptorSetLayoutBinding, 3> bindings = {uboLayoutBinding, samplerLayoutBinding, texturesLayoutBinding};
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, texturesLayoutBinding};
 
     VkDescriptorSetLayoutCreateInfo createInfo{};
     createInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -794,7 +781,7 @@ void Renderer::createDepthResources(){
     VkFormat depthFormat = findDepthFormat();   
 
     utils::createImage("depth", 
-                       swapchainExtent.width, swapchainExtent.height, 
+                       swapchainExtent.width, swapchainExtent.height, 1,
                        depthFormat, VK_IMAGE_TILING_OPTIMAL, 
                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 
                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
@@ -805,46 +792,15 @@ void Renderer::createDepthResources(){
     utils::createImageView("depth", 
                            depthImage,
                            depthFormat,
-                           VK_IMAGE_ASPECT_DEPTH_BIT,
+                           1, VK_IMAGE_ASPECT_DEPTH_BIT,
                            depthImageView, device
     );
 
     utils::transitionImageLayout(depthImage, 
-                                 depthFormat, 
+                                 depthFormat, 1,
                                  VK_IMAGE_LAYOUT_UNDEFINED, 
                                  VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                  device, graphicsQueue, graphicsCommandPool
-    );
-}
-
-void Renderer::createTextureSampler(){
-    VkSamplerCreateInfo createInfo{};
-    createInfo.sType            = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    createInfo.magFilter        = VK_FILTER_LINEAR;
-    createInfo.minFilter        = VK_FILTER_LINEAR;
-    createInfo.addressModeU     = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    createInfo.addressModeV     = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    createInfo.addressModeW     = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    createInfo.anisotropyEnable = VK_TRUE;
-
-    VkPhysicalDeviceProperties deviceProperties{};
-    vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
-
-    createInfo.maxAnisotropy    = deviceProperties.limits.maxSamplerAnisotropy;
-
-    createInfo.borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    createInfo.unnormalizedCoordinates = VK_FALSE;
-    createInfo.compareEnable           = VK_FALSE;
-    createInfo.compareOp               = VK_COMPARE_OP_ALWAYS;
-
-    createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    createInfo.mipLodBias = 0.0f;
-    createInfo.minLod     = 0.0f;
-    createInfo.maxLod     = 0.0f;
-
-    LOG_RESULT(
-        vkCreateSampler(device, &createInfo, nullptr, &textureSampler), 
-        "Create texture sampler"
     );
 }
 
@@ -869,15 +825,12 @@ void Renderer::createUniformBuffers(){
 }
 
 void Renderer::createDescriptorPool(){
-    std::array<VkDescriptorPoolSize, 3> poolSizes{};
+    std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
-    poolSizes[1].type            = VK_DESCRIPTOR_TYPE_SAMPLER;
-    poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-
-    poolSizes[2].type            = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    poolSizes[2].descriptorCount = static_cast<uint32_t>(scene.getTextureCount() * MAX_FRAMES_IN_FLIGHT);
+    poolSizes[1].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[1].descriptorCount = static_cast<uint32_t>(scene.getTextureCount() * MAX_FRAMES_IN_FLIGHT);
 
 
     VkDescriptorPoolCreateInfo createInfo{};
@@ -917,20 +870,15 @@ void Renderer::createDescriptorSets(){
         bufferInfo.offset = 0;
         bufferInfo.range  = sizeof(UniformBufferObject);     // VK_WHOLE_SIZE
         
-        VkDescriptorImageInfo samplerInfo{};
-        samplerInfo.sampler     = textureSampler;
-        samplerInfo.imageView   = VK_NULL_HANDLE;
-        samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
         std::vector<VkDescriptorImageInfo> texturesInfo(scene.getTextureCount());
         for (size_t j=0; j < scene.getTextureCount(); ++j) {
+            texturesInfo[j].sampler     = scene.getTextureSampler(j);
             texturesInfo[j].imageView   = scene.getTextureImageView(j);
             texturesInfo[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            texturesInfo[j].sampler     = VK_NULL_HANDLE;
         }
 
 
-        std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
+        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 
         descriptorWrites[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptorWrites[0].dstSet          = descriptorSets[i];
@@ -944,17 +892,9 @@ void Renderer::createDescriptorSets(){
         descriptorWrites[1].dstSet          = descriptorSets[i];
         descriptorWrites[1].dstBinding      = 1;
         descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLER;
-        descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pImageInfo      = &samplerInfo;
-
-        descriptorWrites[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[2].dstSet          = descriptorSets[i];
-        descriptorWrites[2].dstBinding      = 2;
-        descriptorWrites[2].dstArrayElement = 0;
-        descriptorWrites[2].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        descriptorWrites[2].descriptorCount = static_cast<uint32_t>(texturesInfo.size());
-        descriptorWrites[2].pImageInfo      = texturesInfo.data();
+        descriptorWrites[1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrites[1].descriptorCount = static_cast<uint32_t>(texturesInfo.size());
+        descriptorWrites[1].pImageInfo      = texturesInfo.data();
 
 
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
@@ -1223,8 +1163,8 @@ QueueFamilyIndices Renderer::findQueueFamilies(VkPhysicalDevice device){
     return indices;
 }
 
-int Renderer::rateDeviceSuitability(VkPhysicalDevice device){
-    int score = 0;
+ssize_t Renderer::rateDeviceSuitability(VkPhysicalDevice device){
+    ssize_t score = 0;
 
     QueueFamilyIndices indices = findQueueFamilies(device);
 

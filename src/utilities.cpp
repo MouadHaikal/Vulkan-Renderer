@@ -1,4 +1,5 @@
 #include <utilities.hpp>
+
 #include <logger.hpp>
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -155,7 +156,7 @@ void utils::createBuffer(const std::string& name,
 }
 
 void utils::createImage(const std::string& name, 
-                        uint32_t width, uint32_t height, 
+                        uint32_t width, uint32_t height, uint32_t mipLevels,
                         VkFormat format, VkImageTiling tiling, 
                         VkImageUsageFlags usage, 
                         VkMemoryPropertyFlags properties,
@@ -169,7 +170,7 @@ void utils::createImage(const std::string& name,
     createInfo.extent.width  = width;
     createInfo.extent.height = height;
     createInfo.extent.depth  = 1;
-    createInfo.mipLevels     = 1;
+    createInfo.mipLevels     = mipLevels;
     createInfo.arrayLayers   = 1;
     createInfo.format        = format;
     createInfo.tiling        = tiling;
@@ -225,7 +226,7 @@ void utils::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size
     endSingleTimeCommands(transferCommandBuffer, device, commandPool, queue);
 }
 
-void utils::transitionImageLayout(VkImage image, VkFormat format,
+void utils::transitionImageLayout(VkImage image, VkFormat format, uint32_t mipLevels,
                                VkImageLayout oldLayout, VkImageLayout newLayout,
                                VkDevice device, VkQueue queue, VkCommandPool commandPool
 ){
@@ -250,7 +251,7 @@ void utils::transitionImageLayout(VkImage image, VkFormat format,
         }
         
         barrier.subresourceRange.baseMipLevel   = 0;
-        barrier.subresourceRange.levelCount     = 1;
+        barrier.subresourceRange.levelCount     = mipLevels;
         barrier.subresourceRange.baseArrayLayer = 0;
         barrier.subresourceRange.layerCount     = 1;
 
@@ -300,7 +301,8 @@ bool utils::hasStencilComponent(VkFormat format){
 
 void utils::copyBufferToImage(VkBuffer buffer, VkImage image, 
                               uint32_t width, uint32_t height, VkDevice device, 
-                              VkQueue queue, VkCommandPool commandPool){
+                              VkQueue queue, VkCommandPool commandPool
+){
     VkCommandBuffer commandBuffer = utils::beginSingleTimeCommands(commandPool, device);
 
         VkBufferImageCopy region{};
@@ -322,8 +324,10 @@ void utils::copyBufferToImage(VkBuffer buffer, VkImage image,
 }
 
 void utils::createImageView(const std::string& name, 
-                            VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, 
-                            VkImageView& imageView, VkDevice device){
+                            VkImage image, VkFormat format, 
+                            uint32_t mipLevels, VkImageAspectFlags aspectFlags,
+                            VkImageView& imageView, VkDevice device
+){
     VkImageViewCreateInfo createInfo{};
     createInfo.sType    = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     createInfo.image    = image;
@@ -332,7 +336,7 @@ void utils::createImageView(const std::string& name,
 
     createInfo.subresourceRange.aspectMask     = aspectFlags;
     createInfo.subresourceRange.baseMipLevel   = 0;
-    createInfo.subresourceRange.levelCount     = 1;
+    createInfo.subresourceRange.levelCount     = mipLevels;
     createInfo.subresourceRange.baseArrayLayer = 0;
     createInfo.subresourceRange.layerCount     = 1;
 

@@ -72,9 +72,24 @@ void Logger::logDeviceInfo(VkPhysicalDevice device, QueueFamilyIndices queueFami
     VkPhysicalDeviceProperties deviceProperties;
     vkGetPhysicalDeviceProperties(device, &deviceProperties);
 
+    VkPhysicalDeviceFeatures deviceFeatures;
+    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+    VkPhysicalDeviceMemoryProperties memoryProperties;
+    vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
+
+    float memorySize = 0;
+    for (uint32_t i = 0; i < memoryProperties.memoryHeapCount; ++i) {
+        if (memoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
+            memorySize = memoryProperties .memoryHeaps[i].size / (1073741824.f);  // 1024 * 1024 * 1024
+            break;
+        }
+    }
+
     LOG_INFO("================== Device Info ==================");
 
     LOG_INFO_S("- Name : " << deviceProperties.deviceName);
+
     switch (deviceProperties.deviceType) {
         case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
             LOG_INFO("- Type : Integrated GPU");
@@ -93,10 +108,20 @@ void Logger::logDeviceInfo(VkPhysicalDevice device, QueueFamilyIndices queueFami
             break;
         default: ;
     }
+
+    LOG_INFO_S("- Memory : " << memorySize << " GB");
+
+    LOG_INFO_S("- API version : " << 
+               VK_API_VERSION_MAJOR(deviceProperties.apiVersion) << "." <<
+               VK_API_VERSION_MINOR(deviceProperties.apiVersion) << "." <<
+               VK_API_VERSION_PATCH(deviceProperties.apiVersion));
+
     LOG_DEBUG("- Queue family indices :");
         LOG_DEBUG_S("\tGraphics : " << queueFamilies.graphicsFamily.value());
         LOG_DEBUG_S("\tPresent  : " << queueFamilies.presentFamily.value());
         LOG_DEBUG_S("\tTransfer : " << queueFamilies.transferFamily.value());
+
+    LOG_DEBUG_S("- Max push constants size : " << deviceProperties.limits.maxPushConstantsSize << " bytes");
 
     LOG_INFO("=================================================");
 }

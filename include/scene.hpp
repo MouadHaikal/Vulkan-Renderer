@@ -12,7 +12,9 @@ public:
     glm::mat4* addObject(std::variant<std::string, RawMesh> source, const std::string& textureName = "None", glm::vec3 albedoColor = defaultColor);
 
     size_t      getTextureCount() const;
+
     VkImageView getTextureImageView(size_t index) const;
+    VkSampler   getTextureSampler(size_t index) const;
 
     void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
 

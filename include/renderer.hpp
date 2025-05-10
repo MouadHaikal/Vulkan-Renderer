@@ -79,8 +79,6 @@ private:
     VkDeviceMemory               depthImageMemory;
     VkImageView                  depthImageView;
 
-    VkSampler                    textureSampler;
-
     Scene                        scene;
     Camera                       camera;
 
@@ -116,8 +114,6 @@ private:
     void createCommandPools();
 
     void createScene();
-
-    void createTextureSampler();
 
     void createDescriptorSetLayout();
     void createRenderPass();
@@ -176,10 +172,10 @@ private:
 
 
     //---Check----------------------------------------------------------------------------
-    bool checkInstanceExtensionSupport(std::vector<const char*> &extensions);
-    bool checkValidationLayerSupport();
-    bool checkDeviceExtensionSupport(VkPhysicalDevice device);
-    int  rateDeviceSuitability(VkPhysicalDevice device);
+    bool    checkInstanceExtensionSupport(std::vector<const char*> &extensions);
+    bool    checkValidationLayerSupport();
+    bool    checkDeviceExtensionSupport(VkPhysicalDevice device);
+    ssize_t rateDeviceSuitability(VkPhysicalDevice device);
 
 
     //---Choose---------------------------------------------------------------------------

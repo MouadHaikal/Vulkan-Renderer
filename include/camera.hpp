@@ -22,8 +22,8 @@ constexpr float     minNear        = .001f;
 constexpr float     maxFar         = 1000.f;
 constexpr float     minDepth       = 10.f;
 
-constexpr float     defaultSpeed   = 6.f;
-constexpr glm::vec2 defaultSens    = glm::vec2(.1f, .05f);
+constexpr float     defaultSpeed   = 8.f;
+constexpr glm::vec2 defaultSens    = glm::vec2(.15f, .1f);
 
 
 

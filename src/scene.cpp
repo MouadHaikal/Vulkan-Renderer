@@ -23,7 +23,9 @@ glm::mat4* Scene::addObject(std::variant<std::string, RawMesh> source, const std
 
 size_t Scene::getTextureCount() const{ return textureManager.getTextureCount(); }
 
-VkImageView Scene::getTextureImageView(size_t index) const{ return  textureManager.getTextureImageView(index); }
+VkImageView Scene::getTextureImageView(size_t index) const{ return textureManager.getTextureImageView(index); }
+
+VkSampler Scene::getTextureSampler(size_t index) const{ return textureManager.getTextureSampler(index); }
 
 
 void Scene::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const{
