@@ -3,8 +3,6 @@
 #include <logger.hpp>
 
 
-const char* windowTitle = "VullkanRenderer"; 
-
 
 void App::run(){
     init();
@@ -19,7 +17,7 @@ void App::init(){
 
     glfwInit();
 
-    initWindow(windowTitle);
+    initWindow("Vullkan Renderer");
 
     inputHandler.bindWindow(window);
 

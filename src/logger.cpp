@@ -1,13 +1,12 @@
 #include <logger.hpp>
 
 
-#define TEXT_COLOR_GRAY       "\033[97m"
+#define TEXT_COLOR_GRAY       "\033[38;5;15m"
 #define TEXT_COLOR_WHITE      "\033[37m"
 #define TEXT_COLOR_WHITE_BOLD "\033[1;37m"
-#define TEXT_COLOR_YELLOW     "\033[93m"
 #define TEXT_COLOR_ORANGE     "\033[38;5;208m"
 #define TEXT_COLOR_FLAME      "\033[38;5;202m"
-#define TEXT_COLOR_RED_BOLD   "\033[1;38;5;160m"
+#define TEXT_COLOR_RED        "\033[38;5;160m"
 
 #define RESET_TEXT_COLOR      "\033[0m"
 
@@ -50,7 +49,7 @@ void Logger::log(Level level, const std::string& message) const{
     stream << levelToString(level) << message << RESET_TEXT_COLOR << std::endl;
 
     if (level == Level::FATAL) {
-        stream << TEXT_COLOR_RED_BOLD "Aborting" RESET_TEXT_COLOR << std::endl;
+        stream << TEXT_COLOR_RED "Aborting" RESET_TEXT_COLOR << std::endl;
         std::abort();    
     }
 }
@@ -66,7 +65,7 @@ void Logger::logResult(VkResult result, const std::string& operation, const logF
     }
 }
 
-void Logger::logDeviceInfo(VkPhysicalDevice device, QueueFamilyIndices queueFamilies) const{
+void Logger::logDeviceInfo(VkPhysicalDevice device, QueueFamilyIndices queueFamilyIndices) const{
     if (minLevel > Level::INFO) return;
 
     VkPhysicalDeviceProperties deviceProperties;
@@ -117,9 +116,9 @@ void Logger::logDeviceInfo(VkPhysicalDevice device, QueueFamilyIndices queueFami
                VK_API_VERSION_PATCH(deviceProperties.apiVersion));
 
     LOG_DEBUG("- Queue family indices :");
-        LOG_DEBUG_S("\tGraphics : " << queueFamilies.graphicsFamily.value());
-        LOG_DEBUG_S("\tPresent  : " << queueFamilies.presentFamily.value());
-        LOG_DEBUG_S("\tTransfer : " << queueFamilies.transferFamily.value());
+        LOG_DEBUG_S("\tGraphics : " << queueFamilyIndices.graphicsFamily.value());
+        LOG_DEBUG_S("\tPresent  : " << queueFamilyIndices.presentFamily.value());
+        LOG_DEBUG_S("\tTransfer : " << queueFamilyIndices.transferFamily.value());
 
     LOG_DEBUG_S("- Max push constants size : " << deviceProperties.limits.maxPushConstantsSize << " bytes");
 
@@ -133,7 +132,7 @@ const char* Logger::levelToString(Level level) const{
         case Level::INFO   : return TEXT_COLOR_WHITE_BOLD  "[INFO]  ";
         case Level::WARNING: return TEXT_COLOR_ORANGE      "[WARNING] ";
         case Level::ERROR  : return TEXT_COLOR_FLAME       "[ERROR] ";
-        case Level::FATAL  : return TEXT_COLOR_RED_BOLD    "[FATAL] ";
+        case Level::FATAL  : return TEXT_COLOR_RED         "[FATAL] ";
 
         default            : return "[UNKNOWN]";
     }

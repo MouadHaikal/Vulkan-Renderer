@@ -6,16 +6,11 @@
 #include <inputHandler.hpp>
 
 
-#define VIKING_ROOM_MODEL         "../assets/models/viking_room.obj"
-#define VIKING_ROOM_MODEL_TEXTURE "../assets/textures/viking_room.png"
+const std::filesystem::path dirRoot     = std::filesystem::path(__FILE__).parent_path().parent_path();
+const std::filesystem::path dirShaders  = dirRoot / "shaders" / "spirv";
+const std::filesystem::path dirModels   = dirRoot / "assets" / "models";
+const std::filesystem::path dirTextures = dirRoot / "assets" / "textures";
 
-#define ANTEFIX_MODEL         "../assets/models/antefix.obj"
-#define ANTEFIX_MODEL_TEXTURE "../assets/textures/antefix.png"
-
-#define TEXTURE "../assets/textures/texture.jpg"
-
-#define VERTEX_SHADER_CODE   "../shaders/spirv/vert.spv"  
-#define FRAGMENT_SHADER_CODE "../shaders/spirv/frag.spv"  
 
 const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
@@ -69,7 +64,9 @@ private:
 
     VkRenderPass                 renderPass;
 
-    VkDescriptorSetLayout        descriptorSetLayout;
+    VkDescriptorSetLayout        uboDescriptorSetLayout;
+    VkDescriptorSetLayout        texDescriptorSetLayout;
+
     VkPipelineLayout             pipelineLayout;
     VkPipeline                   graphicsPipeline;
 
@@ -93,8 +90,11 @@ private:
     std::vector<VkDeviceMemory>  uniformBuffersMemory;
     std::vector<void*>           uniformBuffersMapped;
 
-    VkDescriptorPool             descriptorPool;
-    std::vector<VkDescriptorSet> descriptorSets;
+    VkDescriptorPool             uboDescriptorPool;
+    VkDescriptorPool             texDescriptorPool;
+
+    std::vector<VkDescriptorSet> uboDescriptorSets;
+    VkDescriptorSet              texDescriptorSet;
 
     VkCommandPool                graphicsCommandPool;
     VkCommandPool                transferCommandPool;
@@ -122,7 +122,7 @@ private:
 
     void createScene();
 
-    void createDescriptorSetLayout();
+    void createDescriptorSetLayouts();
     void createRenderPass();
     void createGraphicsPipeline();
 
@@ -133,7 +133,7 @@ private:
 
     void createUniformBuffers();
 
-    void createDescriptorPool();
+    void createDescriptorPools();
     void createDescriptorSets();
 
     void createGraphicsCommandBuffers();

@@ -34,7 +34,7 @@ void Renderer::init(GLFWwindow * appWindow){
     createScene();
     LOG_TRACE("-------------------------------------------------");
 
-    createDescriptorSetLayout();
+    createDescriptorSetLayouts();
     createRenderPass();
     createGraphicsPipeline();
     LOG_TRACE("-------------------------------------------------");
@@ -49,7 +49,7 @@ void Renderer::init(GLFWwindow * appWindow){
     createUniformBuffers();
     LOG_TRACE("-------------------------------------------------");
 
-    createDescriptorPool();
+    createDescriptorPools();
     createDescriptorSets();
     LOG_TRACE("-------------------------------------------------");
 
@@ -147,9 +147,11 @@ void Renderer::cleanup(){
         vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
     }
 
-    LOG_TRACE("Cleanup : descriptor pool");
-    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
-    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+    LOG_TRACE("Cleanup : descriptor pools");
+    vkDestroyDescriptorPool(device, uboDescriptorPool, nullptr);
+    vkDestroyDescriptorPool(device, texDescriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(device, uboDescriptorSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(device, texDescriptorSetLayout, nullptr);
 
     LOG_TRACE("Cleanup : pipeline");
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
@@ -164,12 +166,8 @@ void Renderer::cleanup(){
     }
 
     LOG_TRACE("Cleanup : command pools");
-    if (transferCommandPool == graphicsCommandPool) {
-        vkDestroyCommandPool(device, graphicsCommandPool, nullptr);
-    } else {
-        vkDestroyCommandPool(device, graphicsCommandPool, nullptr);
-        vkDestroyCommandPool(device, transferCommandPool, nullptr);
-    }
+    if (transferCommandPool != graphicsCommandPool) vkDestroyCommandPool(device, transferCommandPool, nullptr);
+    vkDestroyCommandPool(device, graphicsCommandPool, nullptr);
 
     LOG_TRACE("Cleanup : device");
     vkDestroyDevice(device, nullptr);
@@ -190,7 +188,7 @@ void Renderer::createVulkanInstance(){
     VkApplicationInfo appInfo{};
     appInfo.sType               = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.applicationVersion  = VK_MAKE_VERSION(0, 1, 0);
-    appInfo.pApplicationName    = "VulkanRenderer";
+    appInfo.pApplicationName    = "Vulkan Renderer";
     appInfo.engineVersion       = VK_MAKE_VERSION(0, 1, 0);
     appInfo.pEngineName         = "Custom Engine";
     appInfo.apiVersion          = VK_API_VERSION_1_3;
@@ -267,15 +265,28 @@ void Renderer::pickPhysicalDevice(){
 
     if (candidates.rbegin()->first == -1) {
         LOG_FATAL("Failed to find suitable GPU");
-    } else {
-        physicalDevice = candidates.rbegin()->second;
-        LOG_RESULT(VK_SUCCESS, "Pick physical device");
-        queueFamilyIndices = findQueueFamilies(physicalDevice);
+        return;
+    } 
 
-        LOG_INFO("↓ Physical device picked ↓"); 
-        LOG_DEVICE_INFO(physicalDevice);
+    physicalDevice = candidates.rbegin()->second;
 
-        msaaSamples = getMaxUsableSampleCount();
+    LOG_RESULT(VK_SUCCESS, "Pick physical device");
+    queueFamilyIndices = findQueueFamilies(physicalDevice);
+
+    LOG_INFO("↓ Physical device picked ↓"); 
+    LOG_DEVICE_INFO(physicalDevice, queueFamilyIndices);
+
+    msaaSamples = getMaxUsableSampleCount();
+
+    switch (msaaSamples) {
+        case VK_SAMPLE_COUNT_64_BIT: LOG_DEBUG_S("MSAA : 64x"); break;
+        case VK_SAMPLE_COUNT_32_BIT: LOG_DEBUG_S("MSAA : 32x"); break;
+        case VK_SAMPLE_COUNT_16_BIT: LOG_DEBUG_S("MSAA : 16x"); break;
+        case VK_SAMPLE_COUNT_8_BIT : LOG_DEBUG_S("MSAA : 8x");  break;
+        case VK_SAMPLE_COUNT_4_BIT : LOG_DEBUG_S("MSAA : 4x");  break;
+        case VK_SAMPLE_COUNT_2_BIT : LOG_DEBUG_S("MSAA : 2x");  break;
+        case VK_SAMPLE_COUNT_1_BIT : LOG_DEBUG_S("MSAA : 1x");  break;
+        default:;
     }
 }
 
@@ -448,6 +459,8 @@ void Renderer::createScene(){
 
     Scene::setContext(context);
 
+    scene.addTexture("default", (dirTextures/"default.jpg").string()); 
+
 
     std::vector<Vertex> planeVertices = {
         {{10.f, 10.f, 0.f}, {1.f, 1.f}},
@@ -467,19 +480,19 @@ void Renderer::createScene(){
     glm::vec3 planeColor = glm::vec3(.02f, .02f, .02f);
 
 
-    scene.addTexture("antefix", ANTEFIX_MODEL_TEXTURE);
-    scene.addTexture("viking", VIKING_ROOM_MODEL_TEXTURE);
+    scene.addTexture("antefix", (dirTextures/"antefix.png").string());
+    scene.addTexture("viking", (dirTextures/"viking_room.png").string());
 
 
-    auto pTopPlaneModelMatrix = scene.addObject(std::make_pair(planeVertices, topPlaneIndices), "None", planeColor);
+    auto pTopPlaneModelMatrix = scene.addObject(std::make_pair(planeVertices, topPlaneIndices), "", planeColor);
     *pTopPlaneModelMatrix     = glm::translate(*pTopPlaneModelMatrix, glm::vec3(0.f, 0.f, 10.f));
 
-    auto pBottomPlaneModelMatrix = scene.addObject(std::make_pair(planeVertices, bottomPlaneIndices), "None", planeColor);
+    auto pBottomPlaneModelMatrix = scene.addObject(std::make_pair(planeVertices, bottomPlaneIndices), "", planeColor);
     *pBottomPlaneModelMatrix     = glm::translate(*pBottomPlaneModelMatrix, glm::vec3(0.f, 0.f, -.5f));
 
 
-    auto pAntefixModelMatrix = scene.addObject(ANTEFIX_MODEL, "antefix");
-    auto pVikingModelMatrix = scene.addObject(VIKING_ROOM_MODEL, "viking");
+    auto pAntefixModelMatrix = scene.addObject((dirModels/"antefix.obj").string(), "antefix");
+    auto pVikingModelMatrix = scene.addObject((dirModels/"viking_room.obj").string(), "viking");
 
     *pAntefixModelMatrix = glm::translate(*pAntefixModelMatrix, glm::vec3(4.f, .0f, -.5f));
     *pAntefixModelMatrix = glm::scale(*pAntefixModelMatrix, glm::vec3(20.f));
@@ -490,30 +503,38 @@ void Renderer::createScene(){
     *pVikingModelMatrix = glm::rotate(*pVikingModelMatrix, glm::radians(-90.f), glm::vec3(0.f, 0.f, 1.f));
 }
 
-void Renderer::createDescriptorSetLayout(){
+void Renderer::createDescriptorSetLayouts(){
     VkDescriptorSetLayoutBinding uboLayoutBinding{};
     uboLayoutBinding.binding         = 0;
     uboLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     uboLayoutBinding.descriptorCount = 1;
     uboLayoutBinding.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
     
+
+    VkDescriptorSetLayoutCreateInfo createInfo{};
+    createInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    createInfo.bindingCount = 1;
+    createInfo.pBindings    = &uboLayoutBinding;
+
+    LOG_RESULT(
+        vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &uboDescriptorSetLayout),
+        "Create UBO descriptor set layout"
+    );
+
+
+
     VkDescriptorSetLayoutBinding texturesLayoutBinding{};   // Combined image samplers
-    texturesLayoutBinding.binding         = 1;
+    texturesLayoutBinding.binding         = 0;
     texturesLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     texturesLayoutBinding.descriptorCount = static_cast<uint32_t>(scene.getTextureCount());
     texturesLayoutBinding.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, texturesLayoutBinding};
-
-    VkDescriptorSetLayoutCreateInfo createInfo{};
-    createInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-    createInfo.pBindings    = bindings.data();
+    createInfo.bindingCount = 1,
+    createInfo.pBindings    = &texturesLayoutBinding;
 
     LOG_RESULT(
-        vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &descriptorSetLayout),
-        "Create descriptor set layout"
+        vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &texDescriptorSetLayout), 
+        "Create textures descriptor set layout"
     );
 }
 
@@ -607,8 +628,8 @@ void Renderer::createRenderPass(){
 
 void Renderer::createGraphicsPipeline(){
     // Shader Stages --------------------------------
-    auto vertShaderCode = readFile(VERTEX_SHADER_CODE);
-    auto fragShaderCode = readFile(FRAGMENT_SHADER_CODE);
+    auto vertShaderCode = readFile((dirShaders/"vert.spv").string());
+    auto fragShaderCode = readFile((dirShaders/"frag.spv").string());
 
     VkShaderModule vertShaderModule = createShaderModule("vertex", vertShaderCode);
     VkShaderModule fragShaderModule = createShaderModule("fragment", fragShaderCode);
@@ -730,15 +751,17 @@ void Renderer::createGraphicsPipeline(){
     fragmentPushConstantRange.offset     = sizeof(VertexPushConstant);
     fragmentPushConstantRange.size       = sizeof(FragmentPushConstant);
 
+    std::array<VkPushConstantRange, 2> pushConstantRanges = { vertexPushConstantRange, fragmentPushConstantRange }; 
+
+
+    std::array<VkDescriptorSetLayout, 2> desciptorSetLayouts = { uboDescriptorSetLayout, texDescriptorSetLayout };
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount         = 1;
-    pipelineLayoutInfo.pSetLayouts            = &descriptorSetLayout;
-    pipelineLayoutInfo.pushConstantRangeCount = 2;
-
-    VkPushConstantRange pushConstantRanges[] =  { vertexPushConstantRange, fragmentPushConstantRange };
-    pipelineLayoutInfo.pPushConstantRanges    = pushConstantRanges;
+    pipelineLayoutInfo.setLayoutCount         = static_cast<uint32_t>(desciptorSetLayouts.size());
+    pipelineLayoutInfo.pSetLayouts            = desciptorSetLayouts.data();
+    pipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size());
+    pipelineLayoutInfo.pPushConstantRanges    = pushConstantRanges.data();
 
     LOG_RESULT(
         vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout),
@@ -870,43 +893,53 @@ void Renderer::createUniformBuffers(){
     }
 }
 
-void Renderer::createDescriptorPool(){
-    std::array<VkDescriptorPoolSize, 2> poolSizes{};
-    poolSizes[0].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-
-    poolSizes[1].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[1].descriptorCount = static_cast<uint32_t>(scene.getTextureCount() * MAX_FRAMES_IN_FLIGHT);
+void Renderer::createDescriptorPools(){
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
 
     VkDescriptorPoolCreateInfo createInfo{};
     createInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    createInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-    createInfo.pPoolSizes    = poolSizes.data();
+    createInfo.poolSizeCount = 1;
+    createInfo.pPoolSizes    = &poolSize;
     createInfo.maxSets       = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
     LOG_RESULT(
-        vkCreateDescriptorPool(device, &createInfo, nullptr, &descriptorPool),
-        "Create descriptor pool"
+        vkCreateDescriptorPool(device, &createInfo, nullptr, &uboDescriptorPool),
+        "Create UBO descriptor pool"
+    );
+
+
+
+    poolSize.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSize.descriptorCount = static_cast<uint32_t>(scene.getTextureCount());
+
+    createInfo.poolSizeCount = 1;
+    createInfo.pPoolSizes    = &poolSize;
+    createInfo.maxSets       = 1;
+
+    LOG_RESULT(
+        vkCreateDescriptorPool(device, &createInfo, nullptr, &texDescriptorPool),
+        "Create textures descriptor pool"
     );
 }
 
 void Renderer::createDescriptorSets(){
-    descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+    uboDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
     
-
-    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+    std::vector<VkDescriptorSetLayout> uboLayouts(MAX_FRAMES_IN_FLIGHT, uboDescriptorSetLayout);
 
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool     = descriptorPool;
+    allocInfo.descriptorPool     = uboDescriptorPool;
     allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-    allocInfo.pSetLayouts        = layouts.data();
+    allocInfo.pSetLayouts        = uboLayouts.data();
 
 
     LOG_RESULT(
-        vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()),
-        "Allocate descriptor sets"
+        vkAllocateDescriptorSets(device, &allocInfo, uboDescriptorSets.data()),
+        "Allocate ubo descriptor sets"
     );
 
 
@@ -915,36 +948,53 @@ void Renderer::createDescriptorSets(){
         bufferInfo.buffer = uniformBuffers[i];
         bufferInfo.offset = 0;
         bufferInfo.range  = sizeof(UniformBufferObject);     // VK_WHOLE_SIZE
-        
-        std::vector<VkDescriptorImageInfo> texturesInfo(scene.getTextureCount());
-        for (size_t j=0; j < scene.getTextureCount(); ++j) {
-            texturesInfo[j].sampler     = scene.getTextureSampler(j);
-            texturesInfo[j].imageView   = scene.getTextureImageView(j);
-            texturesInfo[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        }
 
 
-        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+        VkWriteDescriptorSet descriptorWrite{};
 
-        descriptorWrites[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[0].dstSet          = descriptorSets[i];
-        descriptorWrites[0].dstBinding      = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo     = &bufferInfo;
-
-        descriptorWrites[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[1].dstSet          = descriptorSets[i];
-        descriptorWrites[1].dstBinding      = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptorWrites[1].descriptorCount = static_cast<uint32_t>(texturesInfo.size());
-        descriptorWrites[1].pImageInfo      = texturesInfo.data();
+        descriptorWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet          = uboDescriptorSets[i];
+        descriptorWrite.dstBinding      = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo     = &bufferInfo;
 
 
-        vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+        vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
     }
+
+
+
+    allocInfo.descriptorPool     = texDescriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts        = &texDescriptorSetLayout;
+
+    LOG_RESULT(
+        vkAllocateDescriptorSets(device, &allocInfo, &texDescriptorSet),
+        "Allocate textures descriptor sets"
+    );
+
+
+    std::vector<VkDescriptorImageInfo> texturesInfo(scene.getTextureCount());
+    for (size_t j=0; j < scene.getTextureCount(); ++j) {
+        texturesInfo[j].sampler     = scene.getTextureSampler(j);
+        texturesInfo[j].imageView   = scene.getTextureImageView(j);
+        texturesInfo[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    }
+
+
+    VkWriteDescriptorSet descriptorWrite{};
+
+    descriptorWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet          = texDescriptorSet;
+    descriptorWrite.dstBinding      = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrite.descriptorCount = static_cast<uint32_t>(texturesInfo.size());
+    descriptorWrite.pImageInfo      = texturesInfo.data();
+
+    vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
 }
 
 void Renderer::createGraphicsCommandBuffers(){
@@ -1436,7 +1486,12 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
         scissor.extent    = swapchainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+        std::array<VkDescriptorSet, 2> descriptorSets = { uboDescriptorSets[currentFrame], texDescriptorSet };
+        vkCmdBindDescriptorSets(commandBuffer, 
+                                VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 
+                                static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(),
+                                0, nullptr
+        );
 
         scene.draw(commandBuffer, pipelineLayout);
 

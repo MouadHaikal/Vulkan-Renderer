@@ -8,7 +8,25 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <bits/stdc++.h>
+
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <unordered_map>
+#include <cstddef>
+#include <cstdint>
+#include <unistd.h>
+#include <array>
+#include <map>
+#include <filesystem>
+#include <optional>
+#include <mutex>
+#include <sstream>
+#include <variant>
+#include <set>
+#include <cstring>
+#include <fstream>
+
 
 
 struct QueueFamilyIndices {

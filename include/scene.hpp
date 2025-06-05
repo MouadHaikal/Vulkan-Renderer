@@ -9,7 +9,7 @@ public:
     static void setContext(const VulkanContext& ctx);
 
     void       addTexture(const std::string& name, const std::string& path);
-    glm::mat4* addObject(std::variant<std::string, RawMesh> source, const std::string& textureName = "None", glm::vec3 albedoColor = defaultColor);
+    glm::mat4* addObject(std::variant<std::string, RawMesh> source, const std::string& textureName = "", glm::vec3 albedoColor = defaultColor);
 
     size_t      getTextureCount() const;
 

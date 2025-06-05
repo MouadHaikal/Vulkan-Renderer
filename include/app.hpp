@@ -3,16 +3,15 @@
 #include <renderer.hpp>
 
 
-// Window resolution in screen coordinates
-const uint32_t WIDTH  = 800;
-const uint32_t HEIGHT = 600;
+// Initial window resolution in screen coordinates
+const uint32_t WIDTH  = 1280;
+const uint32_t HEIGHT = 720;
 
 class App {
 public: 
     void run();
 
 private:
-
     GLFWwindow * window;
     Renderer     renderer;
     InputHandler inputHandler;

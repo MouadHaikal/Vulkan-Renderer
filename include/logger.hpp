@@ -32,7 +32,7 @@ public:
 
     void log(Level level, const std::string& message) const;
     void logResult(VkResult result, const std::string& operation, const logFlags& flags) const;
-    void logDeviceInfo(VkPhysicalDevice device, QueueFamilyIndices queueFamilies) const;
+    void logDeviceInfo(VkPhysicalDevice device, QueueFamilyIndices queueFamilyIndices) const;
 
 
     Logger(const Logger&)            = delete;
@@ -69,7 +69,7 @@ private:
 #define LOG_RESULT_OPT(result, operation)    Logger::get().logResult(result, operation, Logger::logFlags(true , Logger::Level::ERROR))
 
 // Can/Should only be used inside Renderer class - findQueueFamilies() function is defined in Renderer class
-#define LOG_DEVICE_INFO(device)              Logger::get().logDeviceInfo(device, findQueueFamilies(device));  
+#define LOG_DEVICE_INFO(device, queueFamilyIndices) Logger::get().logDeviceInfo(device, queueFamilyIndices);  
 
 #define LOG_TRACE_S(stream) \
     do { \

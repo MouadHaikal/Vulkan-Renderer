@@ -33,7 +33,7 @@ private:
 
     std::vector<Texture> textures;
 
-    std::unordered_map<std::string, int> textureIndices = {{"None", -1}};
+    std::unordered_map<std::string, int> textureIndices = {{"", -1}};
 
 
     Texture createTexture(const std::string& imagePath);
