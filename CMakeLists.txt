@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.20)
 project(VulkanRenderer)
 
 # Compiler settings
@@ -15,10 +15,15 @@ find_package(Vulkan REQUIRED)
 # Source files
 file(GLOB_RECURSE SRC_FILES src/*.cpp)
 
-# Add GLFW from source (vendored)
-add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/glfw)
+# Add GLFW from source
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "Disable GLFW examples" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "Disable GLFW tests" FORCE)
+add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/glfw)
+
+# Add ASSIMP from source
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_ASSIMP_VIEW OFF CACHE BOOL "" FORCE)
+add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/assimp)
 
 
 add_executable(VulkanRenderer ${SRC_FILES})
@@ -30,4 +35,5 @@ target_include_directories(VulkanRenderer PRIVATE include vendor)
 target_link_libraries(VulkanRenderer PRIVATE 
     Vulkan::Vulkan 
     glfw 
+    assimp
 )
