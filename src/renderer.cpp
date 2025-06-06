@@ -84,7 +84,7 @@ void Renderer::drawFrame(){
 
     updateUniformBuffer(currentFrame);
 
-    vkResetCommandBuffer(graphicsCommandBuffers[currentFrame], 0);
+    // Command buffer is implicitly reset at vkBeginCommandBuffer()
     recordCommandBuffer(graphicsCommandBuffers[currentFrame], imageIndex);
 
     VkSubmitInfo submitInfo{};
@@ -285,7 +285,7 @@ void Renderer::pickPhysicalDevice(){
         case VK_SAMPLE_COUNT_8_BIT : LOG_DEBUG_S("MSAA : 8x");  break;
         case VK_SAMPLE_COUNT_4_BIT : LOG_DEBUG_S("MSAA : 4x");  break;
         case VK_SAMPLE_COUNT_2_BIT : LOG_DEBUG_S("MSAA : 2x");  break;
-        case VK_SAMPLE_COUNT_1_BIT : LOG_DEBUG_S("MSAA : 1x");  break;
+        case VK_SAMPLE_COUNT_1_BIT : LOG_DEBUG_S("MSAA : Disabled");  break;
         default:;
     }
 }
@@ -547,7 +547,8 @@ void Renderer::createRenderPass(){
     colorAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     colorAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout    = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorAttachment.finalLayout    = msaaSamples > VK_SAMPLE_COUNT_1_BIT ? 
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
     VkAttachmentDescription depthAttachment{};
     depthAttachment.format         = findDepthFormat();
@@ -570,11 +571,20 @@ void Renderer::createRenderPass(){
     colorAttachmentResolve.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 
-    std::array<VkAttachmentDescription, 3> attachments = {
-        colorAttachment,
-        depthAttachment,
-        colorAttachmentResolve
-    };
+    std::vector<VkAttachmentDescription> attachments; 
+    if (msaaSamples > VK_SAMPLE_COUNT_1_BIT) {
+        attachments = {
+            colorAttachment,
+            depthAttachment,
+            colorAttachmentResolve
+        };
+    } 
+    else {
+        attachments = {
+            colorAttachment,
+            depthAttachment
+        };
+    }
 
 
     VkAttachmentReference colorAttachmentRef{};
@@ -595,7 +605,7 @@ void Renderer::createRenderPass(){
     subpass.colorAttachmentCount    = 1;
     subpass.pColorAttachments       = &colorAttachmentRef;
     subpass.pDepthStencilAttachment = &depthAttachmentRef;
-    subpass.pResolveAttachments     = &colorAttachmentResolveRef;
+    subpass.pResolveAttachments     = msaaSamples > VK_SAMPLE_COUNT_1_BIT ? &colorAttachmentResolveRef : nullptr;
 
     VkSubpassDependency dependency{};
     dependency.srcSubpass    = VK_SUBPASS_EXTERNAL;
@@ -697,7 +707,7 @@ void Renderer::createGraphicsPipeline(){
     VkPipelineMultisampleStateCreateInfo multisamplingInfo{};
     multisamplingInfo.sType                = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisamplingInfo.rasterizationSamples = msaaSamples;
-    multisamplingInfo.sampleShadingEnable  = VK_TRUE;
+    multisamplingInfo.sampleShadingEnable  = msaaSamples > VK_SAMPLE_COUNT_1_BIT ? VK_TRUE : VK_FALSE;
     multisamplingInfo.minSampleShading     = minSampleShading;
 
 
@@ -800,6 +810,8 @@ void Renderer::createGraphicsPipeline(){
 }
 
 void Renderer::createColorResources(){
+    if (msaaSamples == VK_SAMPLE_COUNT_1_BIT) return;
+
     VkFormat colorFormat = swapchainImageFormat;
 
     utils::createImage("color resource",
@@ -851,11 +863,19 @@ void Renderer::createFramebuffers(){
     swapchainFramebuffers.resize(swapchainImageViews.size());
 
     for (size_t i=0; i < swapchainImageViews.size(); ++i) {
-        std::array<VkImageView, 3> attachments = {
-            colorImageView,
-            depthImageView,
-            swapchainImageViews[i]
-        };
+        std::vector<VkImageView> attachments;
+        if (msaaSamples > VK_SAMPLE_COUNT_1_BIT) {
+            attachments = {
+                colorImageView,
+                depthImageView,
+                swapchainImageViews[i]
+            };
+        } else {
+            attachments = {
+                swapchainImageViews[i],
+                depthImageView
+            };
+        }
 
         VkFramebufferCreateInfo createInfo{};
         createInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -1066,9 +1086,11 @@ void Renderer::recreateSwapchain(){
 }
 
 void Renderer::cleanupSwapchain(){
-    vkDestroyImageView(device, colorImageView, nullptr);
-    vkDestroyImage(device, colorImage, nullptr);
-    vkFreeMemory(device, colorImageMemory, nullptr);
+    if (msaaSamples > VK_SAMPLE_COUNT_1_BIT) {
+        vkDestroyImageView(device, colorImageView, nullptr);
+        vkDestroyImage(device, colorImage, nullptr);
+        vkFreeMemory(device, colorImageMemory, nullptr);
+    }
 
     vkDestroyImageView(device, depthImageView, nullptr);
     vkDestroyImage(device, depthImage, nullptr);
