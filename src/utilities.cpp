@@ -3,7 +3,12 @@
 #include <logger.hpp>
 
 #define GLM_ENABLE_EXPERIMENTAL
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/gtx/hash.hpp>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb/stb_image.h>
 
 // QueueFamilyIndices ------------------------------------------------------------
 
@@ -345,4 +350,16 @@ void utils::createImageView(const std::string& name,
         vkCreateImageView(device, &createInfo, nullptr, &imageView),
         "Create " + name + " image view"
     );
+}
+
+
+std::string utils::getFileName(const std::string& path){
+    size_t lastSlash = path.find_last_of("/\\");
+
+    if (lastSlash != std::string::npos) {
+        return path.substr(lastSlash + 1);
+    }
+    else {
+        return path;
+    }
 }

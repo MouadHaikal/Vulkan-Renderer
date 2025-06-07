@@ -3,10 +3,11 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
+#include <stb/stb_image.h>
+
 
 
 #include <iostream>
@@ -16,6 +17,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <unistd.h>
+#include <memory>
 #include <array>
 #include <map>
 #include <filesystem>
@@ -26,6 +28,12 @@
 #include <set>
 #include <cstring>
 #include <fstream>
+
+
+const std::filesystem::path dirRoot     = std::filesystem::path(__FILE__).parent_path().parent_path();
+const std::filesystem::path dirShaders  = dirRoot / "shaders" / "spirv";
+const std::filesystem::path dirModels   = dirRoot / "assets" / "models";
+const std::filesystem::path dirTextures = dirRoot / "assets" / "textures";
 
 
 
@@ -136,4 +144,5 @@ namespace utils {
                                VkImageLayout oldLayout, VkImageLayout newLayout,
                                VkDevice device, VkQueue queue, VkCommandPool commandPool);
 
+    std::string getFileName(const std::string& path);
 }

@@ -57,6 +57,8 @@ private:
 };
 
 
+#define SEP "-------------------------------------------------"
+
 #define LOG_TRACE(msg)   Logger::get().log(Logger::Level::TRACE  , msg)
 #define LOG_DEBUG(msg)   Logger::get().log(Logger::Level::DEBUG  , msg)
 #define LOG_INFO(msg)    Logger::get().log(Logger::Level::INFO   , msg)

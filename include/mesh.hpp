@@ -1,30 +1,34 @@
 #pragma once
 
 #include <utilities.hpp>
+#include <material.hpp>
 
 
-using RawMesh = std::pair<std::vector<Vertex>, std::vector<uint32_t>>;
+struct RawMesh {
+    std::vector<Vertex>   vertices;
+    std::vector<uint32_t> indices;
+    Material              material;
+};
 
 
 class Mesh{
 public:
-    glm::mat4 modelMatrix = glm::mat4(1.0f);
-
-
     static void setContext(const VulkanContext& ctx);
 
 
-    Mesh(std::variant<std::string, RawMesh> source);
+    Mesh(const RawMesh* source, glm::mat4* modelMatrix);
 
-    void pushInfo(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
+    void setMaterial(const Material& material);
 
-    void draw(VkCommandBuffer commandBuffer) const;
+    void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
 
     void cleanup();
         
 private:
     static VulkanContext context;
 
+    glm::mat4* const   modelMatrix;
+    Material           material;
 
     VkBuffer           vertexBuffer;
     VkDeviceMemory     vertexBufferMemory;
@@ -34,8 +38,7 @@ private:
 
     size_t             indexCount = 0;
     
-
-    size_t loadModel(const std::string& modelPath);
+    
 
     void createVertexBuffer(const std::vector<Vertex>& vertices);
     void createIndexBuffer(const std::vector<uint32_t>& indices);

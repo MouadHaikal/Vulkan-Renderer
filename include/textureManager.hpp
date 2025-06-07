@@ -16,7 +16,9 @@ public:
         VkSampler      sampler;
     };
 
-    void addTexture(const std::string& name, const std::string& path);
+    // RGBA8888
+    void addTexture(const std::string& name);
+    void addEmbeddedTexture(const std::string& name ,void* pixels, int width, int height);
 
     int         getTextureIndex(const std::string& name) const;
     size_t      getTextureCount() const;
@@ -36,7 +38,7 @@ private:
     std::unordered_map<std::string, int> textureIndices = {{"", -1}};
 
 
-    Texture createTexture(const std::string& imagePath);
+    Texture createTexture(void* pixels, int width, int height);
     void generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
     void createTextureSampler(uint32_t mipLevels, VkSampler& textureSampler);
 };

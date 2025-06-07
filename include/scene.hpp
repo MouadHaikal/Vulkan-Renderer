@@ -1,28 +1,24 @@
 #pragma once
 
 #include <textureManager.hpp>
-#include <sceneObject.hpp>
+#include <model.hpp>
 
 
 class Scene{
 public:
+    TextureManager textureManager;
+
     static void setContext(const VulkanContext& ctx);
 
-    void       addTexture(const std::string& name, const std::string& path);
-    glm::mat4* addObject(std::variant<std::string, RawMesh> source, const std::string& textureName = "", glm::vec3 albedoColor = defaultColor);
 
-    size_t      getTextureCount() const;
-
-    VkImageView getTextureImageView(size_t index) const;
-    VkSampler   getTextureSampler(size_t index) const;
+    std::shared_ptr<Model> addModel(std::variant<std::string, RawMesh*> source);
 
     void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
 
     void cleanup();
 
 private:
-    static VulkanContext     context;
+    static VulkanContext context;
 
-    TextureManager           textureManager;
-    std::vector<SceneObject> objects;
+    std::vector<std::shared_ptr<Model>> models;
 };

@@ -6,11 +6,6 @@
 #include <inputHandler.hpp>
 
 
-const std::filesystem::path dirRoot     = std::filesystem::path(__FILE__).parent_path().parent_path();
-const std::filesystem::path dirShaders  = dirRoot / "shaders" / "spirv";
-const std::filesystem::path dirModels   = dirRoot / "assets" / "models";
-const std::filesystem::path dirTextures = dirRoot / "assets" / "textures";
-
 
 const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
@@ -77,7 +72,7 @@ private:
     VkImageView                  colorImageView;
 
     VkSampleCountFlagBits        msaaSamples;
-    float                        minSampleShading = .2f;
+    float                        minSampleShading = .4f;
 
     VkImage                      depthImage;
     VkDeviceMemory               depthImageMemory;

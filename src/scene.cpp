@@ -11,26 +11,15 @@ void Scene::setContext(const VulkanContext& ctx){
 }
 
 
-void Scene::addTexture(const std::string& name, const std::string& path){
-    textureManager.addTexture(name, path);
+std::shared_ptr<Model> Scene::addModel(std::variant<std::string, RawMesh*> source){
+    models.emplace_back(std::make_shared<Model>(source, this));
+    return models.back();
 }
-
-glm::mat4* Scene::addObject(std::variant<std::string, RawMesh> source, const std::string& textureName, glm::vec3 albedoColor){
-    objects.emplace_back(source, textureManager.getTextureIndex(textureName), albedoColor);
-    return objects.back().getModelMatrix();
-}
-
-
-size_t Scene::getTextureCount() const{ return textureManager.getTextureCount(); }
-
-VkImageView Scene::getTextureImageView(size_t index) const{ return textureManager.getTextureImageView(index); }
-
-VkSampler Scene::getTextureSampler(size_t index) const{ return textureManager.getTextureSampler(index); }
 
 
 void Scene::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const{
-    for (const auto& object : objects) {
-        object.draw(commandBuffer, pipelineLayout);
+    for (const auto& model : models) {
+        model->draw(commandBuffer, pipelineLayout);
     }
 }
 
@@ -38,7 +27,7 @@ void Scene::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout)
 void Scene::cleanup(){
     textureManager.cleanup();
 
-    for (auto& object : objects) {
-        object.cleanup();
+    for (auto& model : models) {
+        model->cleanup();
     }
 }

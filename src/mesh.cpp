@@ -2,42 +2,41 @@
 
 #include <logger.hpp>
 
-#define TINYOBJLOADER_IMPLEMENTATION
-#include <tol/tiny_obj_loader.h>
-
 
 VulkanContext Mesh::context;
 
 
 void Mesh::setContext(const VulkanContext& ctx){ context = ctx; }
 
-Mesh::Mesh(std::variant<std::string, RawMesh> source) {
-    if (std::holds_alternative<RawMesh>(source)) {
-        const auto& [vertices, indices] = std::get<RawMesh>(source);  
 
-        indexCount = indices.size();
+Mesh::Mesh(const RawMesh* source, glm::mat4* modelMatrix) : modelMatrix(modelMatrix) {
+    indexCount = source->indices.size();
 
-        createVertexBuffer(vertices);
-        createIndexBuffer(indices);
+    createVertexBuffer(source->vertices);
+    createIndexBuffer(source->indices);
 
-    } else {
-        const std::string& modelPath = std::get<std::string>(source);
+    material = source->material;
 
-        indexCount = loadModel(modelPath);
-    }
 
     LOG_DEBUG_S("Mesh loaded (" << indexCount/3 << " triangles)");
 }
 
 
-void Mesh::pushInfo(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const{
-    VertexPushConstant vertexPC;
-    vertexPC.modelMatrix = modelMatrix;
-
-    vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VertexPushConstant), &vertexPC);
+void Mesh::setMaterial(const Material& material){
+    this->material = material;
 }
 
-void Mesh::draw(VkCommandBuffer commandBuffer) const{
+
+void Mesh::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const{
+    VertexPushConstant vertexPC;
+    vertexPC.modelMatrix = *modelMatrix;
+
+    vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VertexPushConstant), &vertexPC);
+
+
+    material.pushInfo(commandBuffer, pipelineLayout);
+
+
     VkDeviceSize offsets[] = { 0 };
 
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, offsets);
@@ -46,54 +45,6 @@ void Mesh::draw(VkCommandBuffer commandBuffer) const{
     vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
 }
 
-
-size_t Mesh::loadModel(const std::string& modelPath){
-    std::vector<Vertex>   vertices;
-    std::vector<uint32_t> indices;
-
-
-    tinyobj::attrib_t                attrib;
-    std::vector<tinyobj::shape_t>    shapes;
-    std::vector<tinyobj::material_t> materials;
-
-    std::string warn, err;
-
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, modelPath.c_str())) {
-        LOG_ERROR_S("Failed to load model : " << warn + err);
-    }
-
-    std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
-    for (const auto& shape : shapes) {
-        for (const auto& index : shape.mesh.indices) {
-            Vertex vertex{};
-
-            vertex.pos = {
-                attrib.vertices[3 * index.vertex_index + 0],
-                attrib.vertices[3 * index.vertex_index + 1],
-                attrib.vertices[3 * index.vertex_index + 2]
-            };
-
-            vertex.texCoord = {
-                attrib.texcoords[2 * index.texcoord_index + 0],
-                1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-            };
-
-
-            if (uniqueVertices.count(vertex) == 0) {
-                uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-                vertices.push_back(vertex);
-            }
-            indices.push_back(uniqueVertices[vertex]);
-        }
-    }
-
-
-    createVertexBuffer(vertices);
-    createIndexBuffer(indices);
-
-    return indices.size();
-}
 
 void Mesh::createVertexBuffer(const std::vector<Vertex>& vertices){
     VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();

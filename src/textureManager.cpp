@@ -2,9 +2,6 @@
 
 #include <logger.hpp>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb/stb_image.h>
-
 
 VulkanContext TextureManager::context;
 
@@ -12,17 +9,35 @@ VulkanContext TextureManager::context;
 void TextureManager::setContext(const VulkanContext &ctx){ context = ctx; }
 
 
-void TextureManager::addTexture(const std::string& name, const std::string& path){
+void TextureManager::addTexture(const std::string& name){
     if (textureIndices.find(name) != textureIndices.end()) {
         LOG_WARNING_S("Texture '" << name << "' already loaded");
         return;
     }
 
+
+    std::string path = (dirTextures/name).string();
+
+    int texWidth, texHeight, texChannels;
+
+    stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    if (!pixels) {
+        LOG_WARNING("Failed to load texture image (" + path + ")");
+        return;
+    } 
+
+
     textureIndices[name] = static_cast<int>(textures.size());
+    textures.push_back(createTexture(pixels, texWidth, texHeight));
 
-    textures.push_back(createTexture(path));
+    LOG_DEBUG("Texture loaded (" + name + ")");
+}
 
-    LOG_DEBUG_S("Texture loaded (" << name << ")");
+void TextureManager::addEmbeddedTexture(const std::string& name ,void* pixels, int width, int height){
+    textureIndices[name] = static_cast<int>(textures.size());
+    textures.push_back(createTexture(pixels, width, height));
+
+    LOG_DEBUG("Embedded texture loaded (" + name + ")");
 }
 
 
@@ -54,17 +69,13 @@ void TextureManager::cleanup(){
 }
 
 
-TextureManager::Texture TextureManager::createTexture(const std::string& imagePath){
+TextureManager::Texture TextureManager::createTexture(void* pixels, int width, int height){
     Texture texture;
 
-    int texWidth, texHeight, texChannels;
 
-    stbi_uc* pixels = stbi_load(imagePath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    if (!pixels) LOG_FATAL("Failed to load texture image : " + imagePath);
+    VkDeviceSize imageSize = width * height * 4;
 
-    VkDeviceSize imageSize = texWidth * texHeight * 4;
-
-    uint32_t mipLevels = 1 + static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight))));
+    uint32_t mipLevels = 1 + static_cast<uint32_t>(std::floor(std::log2(std::max(width, height))));
 
 
     VkBuffer stagingBuffer;
@@ -87,7 +98,7 @@ TextureManager::Texture TextureManager::createTexture(const std::string& imagePa
 
     
     utils::createImage("texture", 
-                       texWidth, texHeight, 
+                       width, height, 
                        mipLevels, VK_SAMPLE_COUNT_1_BIT,
                        VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, 
                        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, 
@@ -105,13 +116,13 @@ TextureManager::Texture TextureManager::createTexture(const std::string& imagePa
     );
 
     utils::copyBufferToImage(stagingBuffer, texture.image,
-                             static_cast<uint32_t>(texWidth),
-                             static_cast<uint32_t>(texHeight),
+                             static_cast<uint32_t>(width),
+                             static_cast<uint32_t>(height),
                              context.device, context.transferQueue, context.transferCommandPool
     );
 
 
-    generateMipmaps(texture.image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
+    generateMipmaps(texture.image, VK_FORMAT_R8G8B8A8_SRGB, width, height, mipLevels);
 
 
     vkDestroyBuffer(context.device, stagingBuffer, nullptr);

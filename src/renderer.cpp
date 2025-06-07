@@ -15,49 +15,49 @@ void Renderer::init(GLFWwindow * appWindow){
     
     createVulkanInstance();
     setupDebugMessenger();
-    LOG_TRACE("-------------------------------------------------");
+    LOG_TRACE(SEP);
 
     createSurface();
-    LOG_TRACE("-------------------------------------------------");
+    LOG_TRACE(SEP);
 
     pickPhysicalDevice();
     createLogicalDevice();
-    LOG_TRACE("-------------------------------------------------");
+    LOG_TRACE(SEP);
 
     createSwapchain();
     createSwapchainImageViews();
-    LOG_TRACE("-------------------------------------------------");
+    LOG_TRACE(SEP);
 
     createCommandPools();
-    LOG_TRACE("-------------------------------------------------");
+    LOG_TRACE(SEP);
 
     createScene();
-    LOG_TRACE("-------------------------------------------------");
+    LOG_TRACE(SEP);
 
     createDescriptorSetLayouts();
     createRenderPass();
     createGraphicsPipeline();
-    LOG_TRACE("-------------------------------------------------");
+    LOG_TRACE(SEP);
 
     createDepthResources();
     createColorResources();
-    LOG_TRACE("-------------------------------------------------");
+    LOG_TRACE(SEP);
 
     createFramebuffers();
-    LOG_TRACE("-------------------------------------------------");
+    LOG_TRACE(SEP);
 
     createUniformBuffers();
-    LOG_TRACE("-------------------------------------------------");
+    LOG_TRACE(SEP);
 
     createDescriptorPools();
     createDescriptorSets();
-    LOG_TRACE("-------------------------------------------------");
+    LOG_TRACE(SEP);
 
     createGraphicsCommandBuffers();
-    LOG_TRACE("-------------------------------------------------");
+    LOG_TRACE(SEP);
 
     createSyncObjects();
-    LOG_TRACE("-------------------------------------------------");
+    LOG_TRACE(SEP);
 }
 
 void Renderer::processInput(InputData input, float deltaTime){
@@ -279,13 +279,13 @@ void Renderer::pickPhysicalDevice(){
     msaaSamples = getMaxUsableSampleCount();
 
     switch (msaaSamples) {
-        case VK_SAMPLE_COUNT_64_BIT: LOG_DEBUG_S("MSAA : 64x"); break;
-        case VK_SAMPLE_COUNT_32_BIT: LOG_DEBUG_S("MSAA : 32x"); break;
-        case VK_SAMPLE_COUNT_16_BIT: LOG_DEBUG_S("MSAA : 16x"); break;
-        case VK_SAMPLE_COUNT_8_BIT : LOG_DEBUG_S("MSAA : 8x");  break;
-        case VK_SAMPLE_COUNT_4_BIT : LOG_DEBUG_S("MSAA : 4x");  break;
-        case VK_SAMPLE_COUNT_2_BIT : LOG_DEBUG_S("MSAA : 2x");  break;
-        case VK_SAMPLE_COUNT_1_BIT : LOG_DEBUG_S("MSAA : Disabled");  break;
+        case VK_SAMPLE_COUNT_64_BIT: LOG_INFO("MSAA : 64x");      break;
+        case VK_SAMPLE_COUNT_32_BIT: LOG_INFO("MSAA : 32x");      break;
+        case VK_SAMPLE_COUNT_16_BIT: LOG_INFO("MSAA : 16x");      break;
+        case VK_SAMPLE_COUNT_8_BIT : LOG_INFO("MSAA : 8x");       break;
+        case VK_SAMPLE_COUNT_4_BIT : LOG_INFO("MSAA : 4x");       break;
+        case VK_SAMPLE_COUNT_2_BIT : LOG_INFO("MSAA : 2x");       break;
+        case VK_SAMPLE_COUNT_1_BIT : LOG_INFO("MSAA : Disabled"); break;
         default:;
     }
 }
@@ -459,48 +459,57 @@ void Renderer::createScene(){
 
     Scene::setContext(context);
 
-    scene.addTexture("default", (dirTextures/"default.jpg").string()); 
+    scene.textureManager.addTexture("default.jpg");
 
 
-    std::vector<Vertex> planeVertices = {
-        {{10.f, 10.f, 0.f}, {1.f, 1.f}},
-        {{10.f,-10.f, 0.f}, {1.f, 0.f}},
-        {{-10.f,-10.f, 0.f}, {0.f, 0.f}},
-        {{-10.f, 10.f, 0.f}, {0.f, 1.f}},
+    RawMesh planeMeshData = {
+        // Vertices
+        {
+            {{10.f, 10.f, 0.f}, {1.f, 1.f}},
+            {{10.f,-10.f, 0.f}, {1.f, 0.f}},
+            {{-10.f,-10.f, 0.f}, {0.f, 0.f}},
+            {{-10.f, 10.f, 0.f}, {0.f, 1.f}},
+        },
+
+        // Indices
+        {
+            0, 3, 2, 2, 1, 0
+        },
+
+        // Material
+        {
+            -1,
+            glm::vec3(.02f, .02f, .02f)
+        }
     };
 
-    std::vector<uint32_t> topPlaneIndices = {
-        0, 1, 2, 2, 3, 0
-    };
-
-    std::vector<uint32_t> bottomPlaneIndices = {
-        0, 3, 2, 2, 1, 0
-    };
-
-    glm::vec3 planeColor = glm::vec3(.02f, .02f, .02f);
+    auto planeModel = scene.addModel(&planeMeshData);
+    planeModel->modelMatrix = glm::translate(planeModel->modelMatrix, glm::vec3(0.f, 0.f, -.5f));
 
 
-    scene.addTexture("antefix", (dirTextures/"antefix.png").string());
-    scene.addTexture("viking", (dirTextures/"viking_room.png").string());
+    auto antefixModel = scene.addModel("antefix.obj");
+    scene.textureManager.addTexture("antefix.png");
+    antefixModel->setUniformMaterial({scene.textureManager.getTextureIndex("antefix.png")});
+
+    antefixModel->modelMatrix = glm::translate(antefixModel->modelMatrix, glm::vec3(6.f, .0f, -.5f));
+    antefixModel->modelMatrix = glm::scale(antefixModel->modelMatrix, glm::vec3(20.f));
+    antefixModel->modelMatrix = glm::rotate(antefixModel->modelMatrix, glm::radians(-30.f),glm::vec3(0.f, 0.f, 1.f));
 
 
-    auto pTopPlaneModelMatrix = scene.addObject(std::make_pair(planeVertices, topPlaneIndices), "", planeColor);
-    *pTopPlaneModelMatrix     = glm::translate(*pTopPlaneModelMatrix, glm::vec3(0.f, 0.f, 10.f));
+    auto vikingRoomModel = scene.addModel("viking_room.obj");
+    scene.textureManager.addTexture("viking_room.png");
+    vikingRoomModel->setUniformMaterial({scene.textureManager.getTextureIndex("viking_room.png")});
 
-    auto pBottomPlaneModelMatrix = scene.addObject(std::make_pair(planeVertices, bottomPlaneIndices), "", planeColor);
-    *pBottomPlaneModelMatrix     = glm::translate(*pBottomPlaneModelMatrix, glm::vec3(0.f, 0.f, -.5f));
+    vikingRoomModel->modelMatrix = glm::translate(vikingRoomModel->modelMatrix, glm::vec3(-6.f, .0f, -.2f));
+    vikingRoomModel->modelMatrix = glm::scale(vikingRoomModel->modelMatrix, glm::vec3(3.f));
+    vikingRoomModel->modelMatrix = glm::rotate(vikingRoomModel->modelMatrix, glm::radians(-90.f), glm::vec3(0.f, 0.f, 1.f));
 
 
-    auto pAntefixModelMatrix = scene.addObject((dirModels/"antefix.obj").string(), "antefix");
-    auto pVikingModelMatrix = scene.addObject((dirModels/"viking_room.obj").string(), "viking");
+    auto frankModel = scene.addModel("Frank.blend");
 
-    *pAntefixModelMatrix = glm::translate(*pAntefixModelMatrix, glm::vec3(4.f, .0f, -.5f));
-    *pAntefixModelMatrix = glm::scale(*pAntefixModelMatrix, glm::vec3(20.f));
-    *pAntefixModelMatrix = glm::rotate(*pAntefixModelMatrix, glm::radians(-30.f),glm::vec3(0.f, 0.f, 1.f));
-
-    *pVikingModelMatrix = glm::translate(*pVikingModelMatrix, glm::vec3(-4.f, .0f, -.2f));
-    *pVikingModelMatrix = glm::scale(*pVikingModelMatrix, glm::vec3(3.f));
-    *pVikingModelMatrix = glm::rotate(*pVikingModelMatrix, glm::radians(-90.f), glm::vec3(0.f, 0.f, 1.f));
+    frankModel->modelMatrix = glm::scale(frankModel->modelMatrix, glm::vec3(.1f));
+    frankModel->modelMatrix = glm::translate(frankModel->modelMatrix, glm::vec3(0.f, 0.f, 7.f));
+    frankModel->modelMatrix = glm::rotate(frankModel->modelMatrix, glm::radians(-133.f), glm::vec3(1.f, 0.f, 0.f));
 }
 
 void Renderer::createDescriptorSetLayouts(){
@@ -526,7 +535,7 @@ void Renderer::createDescriptorSetLayouts(){
     VkDescriptorSetLayoutBinding texturesLayoutBinding{};   // Combined image samplers
     texturesLayoutBinding.binding         = 0;
     texturesLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    texturesLayoutBinding.descriptorCount = static_cast<uint32_t>(scene.getTextureCount());
+    texturesLayoutBinding.descriptorCount = static_cast<uint32_t>(scene.textureManager.getTextureCount());
     texturesLayoutBinding.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
 
     createInfo.bindingCount = 1,
@@ -933,7 +942,7 @@ void Renderer::createDescriptorPools(){
 
 
     poolSize.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize.descriptorCount = static_cast<uint32_t>(scene.getTextureCount());
+    poolSize.descriptorCount = static_cast<uint32_t>(scene.textureManager.getTextureCount());
 
     createInfo.poolSizeCount = 1;
     createInfo.pPoolSizes    = &poolSize;
@@ -996,10 +1005,10 @@ void Renderer::createDescriptorSets(){
     );
 
 
-    std::vector<VkDescriptorImageInfo> texturesInfo(scene.getTextureCount());
-    for (size_t j=0; j < scene.getTextureCount(); ++j) {
-        texturesInfo[j].sampler     = scene.getTextureSampler(j);
-        texturesInfo[j].imageView   = scene.getTextureImageView(j);
+    std::vector<VkDescriptorImageInfo> texturesInfo(scene.textureManager.getTextureCount());
+    for (size_t j=0; j < scene.textureManager.getTextureCount(); ++j) {
+        texturesInfo[j].sampler     = scene.textureManager.getTextureSampler(j);
+        texturesInfo[j].imageView   = scene.textureManager.getTextureImageView(j);
         texturesInfo[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
 
@@ -1433,7 +1442,7 @@ std::vector<char> Renderer::readFile(const std::string &fileName){
     std::ifstream file(fileName, std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) {
-        LOG_FATAL("Failed to open file");
+        LOG_FATAL("Failed to open file (" + fileName + ")");
     }
 
     size_t fileSize = (size_t) file.tellg();
@@ -1557,7 +1566,7 @@ VkFormat Renderer::findSupportedFormat(const std::vector<VkFormat> &candidates, 
         }
     }
 
-    LOG_FATAL("Failed to find image format");
+    LOG_FATAL("Failed to find supported image format");
     abort();  // Already called in LOG_FATAL()
 }
 
