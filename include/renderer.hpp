@@ -81,9 +81,20 @@ private:
     Scene                        scene;
     Camera                       camera;
 
-    std::vector<VkBuffer>        uniformBuffers;
-    std::vector<VkDeviceMemory>  uniformBuffersMemory;
-    std::vector<void*>           uniformBuffersMapped;
+    // View & Projection matrices 
+    std::vector<VkBuffer>        vpUniformBuffers;
+    std::vector<VkDeviceMemory>  vpUniformBuffersMemory;
+    std::vector<void*>           vpUniformBuffersMapped;
+
+    // Point lights
+    std::vector<VkBuffer>        plUniformBuffers;
+    std::vector<VkDeviceMemory>  plUniformBuffersMemory;
+    std::vector<void*>           plUniformBuffersMapped;
+
+    // Directional lights
+    std::vector<VkBuffer>        dlUniformBuffers;
+    std::vector<VkDeviceMemory>  dlUniformBuffersMemory;
+    std::vector<void*>           dlUniformBuffersMapped;
 
     VkDescriptorPool             uboDescriptorPool;
     VkDescriptorPool             texDescriptorPool;
@@ -194,7 +205,7 @@ private:
 
 
     //---Modify---------------------------------------------------------------------------
-    void updateUniformBuffer(uint32_t frame);
+    void updateUniformBuffers(uint32_t frame);
 
 
     //---Commands-------------------------------------------------------------------------

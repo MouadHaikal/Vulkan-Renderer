@@ -82,7 +82,7 @@ void Renderer::drawFrame(){
     // Only reset fence if work is getting submitted to avoid deadlocks
     vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
-    updateUniformBuffer(currentFrame);
+    updateUniformBuffers(currentFrame);
 
     // Command buffer is implicitly reset at vkBeginCommandBuffer()
     recordCommandBuffer(graphicsCommandBuffers[currentFrame], imageIndex);
@@ -143,8 +143,14 @@ void Renderer::cleanup(){
 
     LOG_TRACE("Cleanup : uniform buffers");
     for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        vkDestroyBuffer(device, uniformBuffers[i], nullptr);
-        vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
+        vkDestroyBuffer(device, vpUniformBuffers[i], nullptr);
+        vkFreeMemory(device, vpUniformBuffersMemory[i], nullptr);
+
+        vkDestroyBuffer(device, plUniformBuffers[i], nullptr);
+        vkFreeMemory(device, plUniformBuffersMemory[i], nullptr);
+
+        vkDestroyBuffer(device, dlUniformBuffers[i], nullptr);
+        vkFreeMemory(device, dlUniformBuffersMemory[i], nullptr);
     }
 
     LOG_TRACE("Cleanup : descriptor pools");
@@ -288,6 +294,10 @@ void Renderer::pickPhysicalDevice(){
         case VK_SAMPLE_COUNT_1_BIT : LOG_INFO("MSAA : Disabled"); break;
         default:;
     }
+
+    if (msaaSamples > VK_SAMPLE_COUNT_1_BIT) LOG_INFO_S("Sample Shading Rate (min) : " << minSampleShading);
+    
+    LOG_DEBUG(SEP);
 }
 
 void Renderer::createLogicalDevice(){
@@ -458,72 +468,56 @@ void Renderer::createScene(){
     context.transferCommandPool = transferCommandPool;
 
     Scene::setContext(context);
-
-    scene.textureManager.addTexture("default.jpg");
-
-
-    RawMesh planeMeshData = {
-        // Vertices
-        {
-            {{10.f, 10.f, 0.f}, {1.f, 1.f}},
-            {{10.f,-10.f, 0.f}, {1.f, 0.f}},
-            {{-10.f,-10.f, 0.f}, {0.f, 0.f}},
-            {{-10.f, 10.f, 0.f}, {0.f, 1.f}},
-        },
-
-        // Indices
-        {
-            0, 3, 2, 2, 1, 0
-        },
-
-        // Material
-        {
-            -1,
-            glm::vec3(.02f, .02f, .02f)
-        }
-    };
-
-    auto planeModel = scene.addModel(&planeMeshData);
-    planeModel->modelMatrix = glm::translate(planeModel->modelMatrix, glm::vec3(0.f, 0.f, -.5f));
+    scene.textureManager.addTexture("default.png");
 
 
-    auto antefixModel = scene.addModel("antefix.obj");
-    scene.textureManager.addTexture("antefix.png");
-    antefixModel->setUniformMaterial({scene.textureManager.getTextureIndex("antefix.png")});
+    auto sponzaModel = scene.addModel("sponza.obj");
 
-    antefixModel->modelMatrix = glm::translate(antefixModel->modelMatrix, glm::vec3(6.f, .0f, -.5f));
-    antefixModel->modelMatrix = glm::scale(antefixModel->modelMatrix, glm::vec3(20.f));
-    antefixModel->modelMatrix = glm::rotate(antefixModel->modelMatrix, glm::radians(-30.f),glm::vec3(0.f, 0.f, 1.f));
-
-
-    auto vikingRoomModel = scene.addModel("viking_room.obj");
-    scene.textureManager.addTexture("viking_room.png");
-    vikingRoomModel->setUniformMaterial({scene.textureManager.getTextureIndex("viking_room.png")});
-
-    vikingRoomModel->modelMatrix = glm::translate(vikingRoomModel->modelMatrix, glm::vec3(-6.f, .0f, -.2f));
-    vikingRoomModel->modelMatrix = glm::scale(vikingRoomModel->modelMatrix, glm::vec3(3.f));
-    vikingRoomModel->modelMatrix = glm::rotate(vikingRoomModel->modelMatrix, glm::radians(-90.f), glm::vec3(0.f, 0.f, 1.f));
-
-
-    auto frankModel = scene.addModel("Frank.blend");
-
-    frankModel->modelMatrix = glm::scale(frankModel->modelMatrix, glm::vec3(.1f));
-    frankModel->modelMatrix = glm::translate(frankModel->modelMatrix, glm::vec3(0.f, 0.f, 7.f));
-    frankModel->modelMatrix = glm::rotate(frankModel->modelMatrix, glm::radians(-133.f), glm::vec3(1.f, 0.f, 0.f));
+    sponzaModel->modelMatrix = glm::rotate(
+                                   glm::rotate(
+                                       glm::translate(
+                                           sponzaModel->modelMatrix, 
+                                           glm::vec3(0.f, 0.f, -300.f)
+                                       ), 
+                                       glm::radians(90.f), 
+                                       glm::vec3(1.f, 0.f, 0.f)
+                                   ), 
+                                   glm::radians(-90.f), 
+                                   glm::vec3(0.f, 1.f, 0.f)
+    );
 }
 
 void Renderer::createDescriptorSetLayouts(){
-    VkDescriptorSetLayoutBinding uboLayoutBinding{};
-    uboLayoutBinding.binding         = 0;
-    uboLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uboLayoutBinding.descriptorCount = 1;
-    uboLayoutBinding.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
+    // Uniform Buffers
+    VkDescriptorSetLayoutBinding vpLayoutBinding{};
+    vpLayoutBinding.binding         = 0;
+    vpLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    vpLayoutBinding.descriptorCount = 1;
+    vpLayoutBinding.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayoutBinding plLayoutBinding{};
+    plLayoutBinding.binding         = 1;
+    plLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    plLayoutBinding.descriptorCount = 1;
+    plLayoutBinding.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkDescriptorSetLayoutBinding dlLayoutBinding{};
+    dlLayoutBinding.binding         = 2;
+    dlLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    dlLayoutBinding.descriptorCount = 1;
+    dlLayoutBinding.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    std::array<VkDescriptorSetLayoutBinding, 3> uboLayoutBindings = {
+        vpLayoutBinding,
+        plLayoutBinding,
+        dlLayoutBinding
+    };
     
 
     VkDescriptorSetLayoutCreateInfo createInfo{};
     createInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    createInfo.bindingCount = 1;
-    createInfo.pBindings    = &uboLayoutBinding;
+    createInfo.bindingCount = static_cast<uint32_t>(uboLayoutBindings.size());
+    createInfo.pBindings    = uboLayoutBindings.data();
 
     LOG_RESULT(
         vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &uboDescriptorSetLayout),
@@ -531,7 +525,7 @@ void Renderer::createDescriptorSetLayouts(){
     );
 
 
-
+    // Textures
     VkDescriptorSetLayoutBinding texturesLayoutBinding{};   // Combined image samplers
     texturesLayoutBinding.binding         = 0;
     texturesLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -903,29 +897,60 @@ void Renderer::createFramebuffers(){
 }
 
 void Renderer::createUniformBuffers(){
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+    VkDeviceSize vpBufferSize = sizeof(VPUBO);
+    VkDeviceSize plBufferSize = 16 + sizeof(PointLight) * scene.pointLights.size();
+    VkDeviceSize dlBufferSize = 16 + sizeof(DirectionalLight) * scene.directionalLights.size();
 
-    uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-    uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
-    uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+    vpUniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    vpUniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+    vpUniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+    plUniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    plUniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+    plUniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+    dlUniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    dlUniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+    dlUniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
 
     for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        utils::createBuffer("uniform", 
-                            bufferSize, 
+        utils::createBuffer("view/projection uniform", 
+                            vpBufferSize, 
                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-                            uniformBuffers[i], uniformBuffersMemory[i],
+                            vpUniformBuffers[i], vpUniformBuffersMemory[i],
                             physicalDevice, device, queueFamilyIndices
         );
 
-        vkMapMemory(device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
+        utils::createBuffer("point lights uniform", 
+                            plBufferSize, 
+                            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+                            plUniformBuffers[i], plUniformBuffersMemory[i], 
+                            physicalDevice, device, queueFamilyIndices
+        );
+
+        utils::createBuffer("directional lights uniform", 
+                            dlBufferSize, 
+                            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+                            dlUniformBuffers[i], dlUniformBuffersMemory[i], 
+                            physicalDevice, device, queueFamilyIndices
+        );
+
+
+        vkMapMemory(device, vpUniformBuffersMemory[i], 0, vpBufferSize, 0, &vpUniformBuffersMapped[i]);
+        vkMapMemory(device, plUniformBuffersMemory[i], 0, plBufferSize, 0, &plUniformBuffersMapped[i]);
+        vkMapMemory(device, dlUniformBuffersMemory[i], 0, dlBufferSize, 0, &dlUniformBuffersMapped[i]);
     }
 }
 
 void Renderer::createDescriptorPools(){
     VkDescriptorPoolSize poolSize{};
     poolSize.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 3;   // vp + pl + bl
 
 
     VkDescriptorPoolCreateInfo createInfo{};
@@ -955,6 +980,7 @@ void Renderer::createDescriptorPools(){
 }
 
 void Renderer::createDescriptorSets(){
+    // Uniform Buffers
     uboDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
     
     std::vector<VkDescriptorSetLayout> uboLayouts(MAX_FRAMES_IN_FLIGHT, uboDescriptorSetLayout);
@@ -968,33 +994,59 @@ void Renderer::createDescriptorSets(){
 
     LOG_RESULT(
         vkAllocateDescriptorSets(device, &allocInfo, uboDescriptorSets.data()),
-        "Allocate ubo descriptor sets"
+        "Allocate uniform buffers descriptor sets"
     );
 
 
     for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = uniformBuffers[i];
-        bufferInfo.offset = 0;
-        bufferInfo.range  = sizeof(UniformBufferObject);     // VK_WHOLE_SIZE
+        VkDescriptorBufferInfo vpBufferInfo{};
+        vpBufferInfo.buffer = vpUniformBuffers[i];
+        vpBufferInfo.offset = 0;
+        vpBufferInfo.range  = sizeof(VPUBO);     // VK_WHOLE_SIZE
+        
+        VkDescriptorBufferInfo plBufferInfo{};
+        plBufferInfo.buffer = plUniformBuffers[i];
+        plBufferInfo.offset = 0;
+        plBufferInfo.range  = VK_WHOLE_SIZE;
+
+        VkDescriptorBufferInfo dlBufferInfo{};
+        dlBufferInfo.buffer = dlUniformBuffers[i];
+        dlBufferInfo.offset = 0;
+        dlBufferInfo.range  = VK_WHOLE_SIZE;
 
 
-        VkWriteDescriptorSet descriptorWrite{};
+        std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
 
-        descriptorWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet          = uboDescriptorSets[i];
-        descriptorWrite.dstBinding      = 0;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pBufferInfo     = &bufferInfo;
+        descriptorWrites[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[0].dstSet          = uboDescriptorSets[i];
+        descriptorWrites[0].dstBinding      = 0;
+        descriptorWrites[0].dstArrayElement = 0;
+        descriptorWrites[0].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites[0].descriptorCount = 1;
+        descriptorWrites[0].pBufferInfo     = &vpBufferInfo;
+
+        descriptorWrites[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[1].dstSet          = uboDescriptorSets[i];
+        descriptorWrites[1].dstBinding      = 1;
+        descriptorWrites[1].dstArrayElement = 0;
+        descriptorWrites[1].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites[1].descriptorCount = 1;
+        descriptorWrites[1].pBufferInfo     = &plBufferInfo;
+
+        descriptorWrites[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[2].dstSet          = uboDescriptorSets[i];
+        descriptorWrites[2].dstBinding      = 2;
+        descriptorWrites[2].dstArrayElement = 0;
+        descriptorWrites[2].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites[2].descriptorCount = 1;
+        descriptorWrites[2].pBufferInfo     = &dlBufferInfo;
 
 
-        vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+        vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
 
 
-
+    // Textures
     allocInfo.descriptorPool     = texDescriptorPool;
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &texDescriptorSetLayout;
@@ -1535,18 +1587,34 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
     );
 }
 
-void Renderer::updateUniformBuffer(uint32_t frame){
-    UniformBufferObject ubo{
+void Renderer::updateUniformBuffers(uint32_t frame){
+    // View & Projection matrices
+    VPUBO vpubo{
         camera.getViewMatrix(),
         camera.getProjMatrix(swapchainExtent.width / (float) swapchainExtent.height)
     };
 
     // The Y axis is pointing down in Vulkan (glm was made for OpenGL - Y axis pointing up)
     // Must flip rasterizer front face so that backface culling works as intended
-    ubo.proj[1][1] *= -1;
+    vpubo.proj[1][1] *= -1;
+
+    memcpy(vpUniformBuffersMapped[frame], &vpubo, sizeof(vpubo));
 
 
-    memcpy(uniformBuffersMapped[frame], &ubo, sizeof(ubo));
+    // Point lights
+    int pointLightCount = static_cast<int>(scene.pointLights.size());
+    memcpy(plUniformBuffersMapped[frame], &pointLightCount, sizeof(int));
+
+    void* plBufferArrayptr = static_cast<char*>(plUniformBuffersMapped[frame]) + 16;
+    memcpy(plBufferArrayptr, scene.pointLights.data(), sizeof(PointLight) * pointLightCount);
+
+
+    // Directional lights
+    int directionalLightCount = static_cast<int>(scene.directionalLights.size());
+    memcpy(dlUniformBuffersMapped[frame], &directionalLightCount, sizeof(int));
+
+    void* dlBufferArrayptr = static_cast<char*>(dlUniformBuffersMapped[frame]) + 16;
+    memcpy(dlBufferArrayptr, scene.directionalLights.data(), sizeof(DirectionalLight) * directionalLightCount);
 }
 
 VkFormat Renderer::findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features){

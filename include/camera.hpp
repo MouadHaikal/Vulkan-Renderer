@@ -16,13 +16,13 @@ constexpr float     defaultFovY    = 60.f;
 constexpr float     maxFovY        = 140.f;
 constexpr float     minFovY        = 10.f;
 
-constexpr float     defaultNear    = .01f;
-constexpr float     defaultFar     = 100.f;
-constexpr float     minNear        = .001f;
-constexpr float     maxFar         = 1000.f;
+constexpr float     defaultNear    = 1.f;
+constexpr float     defaultFar     = 10000.f;
+constexpr float     minNear        = .1f;
+constexpr float     maxFar         = 10000.f;
 constexpr float     minDepth       = 10.f;
 
-constexpr float     defaultSpeed   = 8.f;
+constexpr float     defaultSpeed   = 800.f;
 constexpr glm::vec2 defaultSens    = glm::vec2(.15f, .1f);
 
 

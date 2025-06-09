@@ -56,11 +56,12 @@ struct SwapchainSupportDetails {
 struct Vertex {
     glm::vec3 pos;
     glm::vec2 texCoord;
+    glm::vec3 normal;
 
     bool operator==(const Vertex& other) const;
 
     static VkVertexInputBindingDescription                  getBindingDescription();
-    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions();
+    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
 };
 
 namespace std {
@@ -70,7 +71,7 @@ namespace std {
 }
 
 
-struct UniformBufferObject {
+struct VPUBO {
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 proj;
 };
@@ -99,8 +100,21 @@ struct FragmentPushConstant {
 };
 
 
-namespace utils {
+struct PointLight{
+    alignas(16) glm::vec3 position  = glm::vec3(0.f);
+    alignas(4)  float     intensity = 100.f;
+    alignas(16) glm::vec3 color     = glm::vec3(1.f);
+};
 
+struct DirectionalLight{
+    alignas(16) glm::vec3 direction        = glm::vec3(0.f, 0.f, -1.f);
+    alignas(4)  float     normalIrradiance = 50.f;
+    alignas(16) glm::vec3 color            = glm::vec3(1.f);
+};
+
+
+
+namespace utils {
     VkCommandBuffer beginSingleTimeCommands(VkCommandPool commandPool, VkDevice device);
     void            endSingleTimeCommands(VkCommandBuffer commandBuffer, VkDevice device, VkCommandPool commandPool, VkQueue queue);
 

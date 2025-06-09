@@ -8,6 +8,10 @@ class Scene{
 public:
     TextureManager textureManager;
 
+    std::vector<PointLight>       pointLights;
+    std::vector<DirectionalLight> directionalLights;
+
+
     static void setContext(const VulkanContext& ctx);
 
 

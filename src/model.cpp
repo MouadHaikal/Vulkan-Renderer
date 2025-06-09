@@ -2,7 +2,6 @@
 #include <scene.hpp>
 
 #include <logger.hpp>
-#include <string>
 
 
 
@@ -38,7 +37,7 @@ void Model::loadModel(const std::string& path, Scene* parentScene){
 
     const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices);
     if (!scene) { 
-        LOG_ERROR("Failed to load model  (" + path + ")");
+        LOG_ERROR("Failed to load model (" + path + ")");
         return;
     }
 
@@ -59,11 +58,10 @@ void Model::loadTextures(const aiScene* scene, Scene* parentScene, const std::st
             aiString path;
 
             if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
-
                 const aiTexture* texture = scene->GetEmbeddedTexture(path.C_Str());
 
                 if (texture) {   // Embedded texture
-                    std::string textureName = modelName + path.C_Str();   // example.obj*0
+                    std::string textureName = modelName + path.C_Str();
 
                     if (texture->mHeight) {   // Not compressed
                         parentScene->textureManager.addEmbeddedTexture(textureName,
@@ -72,7 +70,6 @@ void Model::loadTextures(const aiScene* scene, Scene* parentScene, const std::st
                         );
                     }
                     else {    // Compressed
-                        // LOG_WARNING("Compressed embedded textures are not supported yet (" + textureName + ")");
                         int width, height, channels;
                         stbi_uc* pixels = stbi_load_from_memory(reinterpret_cast<stbi_uc*>(texture->pcData), 
                                                                 texture->mWidth, &width, &height, &channels, 
@@ -90,6 +87,10 @@ void Model::loadTextures(const aiScene* scene, Scene* parentScene, const std::st
                 }
             } 
         }
+
+        if (material->GetTextureCount(aiTextureType_NORMALS)) {
+            LOG_WARNING("3ndo normal map");
+        }
     }
 }
 
@@ -101,20 +102,24 @@ void Model::loadNodeRec(const aiNode* node, const aiScene* scene, Scene* parentS
         meshData.vertices.resize(mesh->mNumVertices);
 
         // Vertices
-        for (size_t i = 0; i < mesh->mNumVertices; ++i) {
-            meshData.vertices[i].pos = { mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z };
+        for (size_t j = 0; j < mesh->mNumVertices; ++j) {
+            meshData.vertices[j].pos = { mesh->mVertices[j].x, mesh->mVertices[j].y, mesh->mVertices[j].z };
 
             if (mesh->HasTextureCoords(0)) {
-                meshData.vertices[i].texCoord = { mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y };
+                meshData.vertices[j].texCoord = { mesh->mTextureCoords[0][j].x, mesh->mTextureCoords[0][j].y };
+            }
+
+            if (mesh->HasNormals()) {
+                meshData.vertices[j].normal = { mesh->mNormals[j].x, mesh->mNormals[j].y, mesh->mNormals[j].z };
             }
         }
     
         // Indices
-        for (size_t i = 0; i < mesh->mNumFaces; ++i) {
-            aiFace face = mesh->mFaces[i];
+        for (size_t j = 0; j < mesh->mNumFaces; ++j) {
+            aiFace face = mesh->mFaces[j];
 
-            for (size_t j = 0; j < face.mNumIndices; ++j) {
-                meshData.indices.push_back(face.mIndices[j]);
+            for (size_t k = 0; k < face.mNumIndices; ++k) {
+                meshData.indices.push_back(face.mIndices[k]);
             }
         }        
 
