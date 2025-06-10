@@ -27,14 +27,14 @@ void Mesh::setMaterial(const Material& material){
 }
 
 
-void Mesh::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const{
+void Mesh::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const glm::vec3& cameraPos) const{
     VertexPushConstant vertexPC;
     vertexPC.modelMatrix = *modelMatrix;
 
     vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VertexPushConstant), &vertexPC);
 
 
-    material.pushInfo(commandBuffer, pipelineLayout);
+    material.pushInfo(commandBuffer, pipelineLayout, cameraPos);
 
 
     VkDeviceSize offsets[] = { 0 };

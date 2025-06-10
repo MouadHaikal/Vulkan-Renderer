@@ -17,9 +17,9 @@ std::shared_ptr<Model> Scene::addModel(std::variant<std::string, RawMesh*> sourc
 }
 
 
-void Scene::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const{
+void Scene::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const glm::vec3& cameraPos) const{
     for (const auto& model : models) {
-        model->draw(commandBuffer, pipelineLayout);
+        model->draw(commandBuffer, pipelineLayout, cameraPos);
     }
 }
 

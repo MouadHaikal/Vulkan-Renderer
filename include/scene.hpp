@@ -17,7 +17,7 @@ public:
 
     std::shared_ptr<Model> addModel(std::variant<std::string, RawMesh*> source);
 
-    void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
+    void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const glm::vec3& cameraPos) const;
 
     void cleanup();
 

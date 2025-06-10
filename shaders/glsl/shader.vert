@@ -28,5 +28,5 @@ void main() {
 
     fragPosition = worldPos.xyz;
     fragTexCoord = inTexCoord;
-    fragNormal   = inNormal;
+    fragNormal   = normalize(mat3(vpc.model) * inNormal);
 }

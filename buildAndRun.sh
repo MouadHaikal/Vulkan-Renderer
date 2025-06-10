@@ -1,6 +1,10 @@
 #!/bin/sh
 set -e
 
+cd shaders
+./compile.sh 
+cd ..
+
 mkdir -p build
 cd build
 

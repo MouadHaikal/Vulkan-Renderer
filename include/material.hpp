@@ -11,7 +11,7 @@ public:
 
     void setTextureIndex(int index);
 
-    void pushInfo(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
+    void pushInfo(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const glm::vec3& cameraPos) const;
 
 private:
 

@@ -25,9 +25,9 @@ void Model::setUniformMaterial(const Material& material){
 }
 
 
-void Model::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const{
+void Model::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const glm::vec3& cameraPos) const{
     for (const auto& mesh : meshes) {
-        mesh->draw(commandBuffer, pipelineLayout);
+        mesh->draw(commandBuffer, pipelineLayout, cameraPos);
     }
 }
 

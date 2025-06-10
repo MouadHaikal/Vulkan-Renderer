@@ -21,7 +21,7 @@ public:
 private:
     std::vector<std::unique_ptr<Mesh>> meshes;
 
-    void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
+    void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const glm::vec3& cameraPos) const;
     void cleanup();
 
     friend class Scene;

@@ -485,6 +485,12 @@ void Renderer::createScene(){
                                    glm::radians(-90.f), 
                                    glm::vec3(0.f, 1.f, 0.f)
     );
+
+
+    scene.pointLights.push_back({glm::vec3(0.f, 400.f, -200.f), 20000.f, glm::vec3(.8f, 0.4f, 0.1f)});
+    scene.pointLights.push_back({glm::vec3(0.f, -400.f, -200.f), 20000.f, glm::vec3(.4f, 0.8f, .9f)});
+
+    scene.directionalLights.push_back({ glm::vec3(0.f, 0.f, -1.f), .1f, glm::vec3(1.f) });
 }
 
 void Renderer::createDescriptorSetLayouts(){
@@ -897,7 +903,7 @@ void Renderer::createFramebuffers(){
 }
 
 void Renderer::createUniformBuffers(){
-    VkDeviceSize vpBufferSize = sizeof(VPUBO);
+    VkDeviceSize vpBufferSize = sizeof(VPubo);
     VkDeviceSize plBufferSize = 16 + sizeof(PointLight) * scene.pointLights.size();
     VkDeviceSize dlBufferSize = 16 + sizeof(DirectionalLight) * scene.directionalLights.size();
 
@@ -1002,7 +1008,7 @@ void Renderer::createDescriptorSets(){
         VkDescriptorBufferInfo vpBufferInfo{};
         vpBufferInfo.buffer = vpUniformBuffers[i];
         vpBufferInfo.offset = 0;
-        vpBufferInfo.range  = sizeof(VPUBO);     // VK_WHOLE_SIZE
+        vpBufferInfo.range  = sizeof(VPubo);     // VK_WHOLE_SIZE
         
         VkDescriptorBufferInfo plBufferInfo{};
         plBufferInfo.buffer = plUniformBuffers[i];
@@ -1576,7 +1582,7 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
                                 0, nullptr
         );
 
-        scene.draw(commandBuffer, pipelineLayout);
+        scene.draw(commandBuffer, pipelineLayout, camera.getPosition());
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -1589,7 +1595,7 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 
 void Renderer::updateUniformBuffers(uint32_t frame){
     // View & Projection matrices
-    VPUBO vpubo{
+    VPubo vpubo{
         camera.getViewMatrix(),
         camera.getProjMatrix(swapchainExtent.width / (float) swapchainExtent.height)
     };

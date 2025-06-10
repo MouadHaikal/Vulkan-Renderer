@@ -71,7 +71,7 @@ namespace std {
 }
 
 
-struct VPUBO {
+struct VPubo {
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 proj;
 };
@@ -95,20 +95,21 @@ struct VertexPushConstant {
 };
 
 struct FragmentPushConstant {
-    alignas(4)  int       textureIndex;
     alignas(16) glm::vec3 albedoColor;
+    alignas(4)  int       textureIndex;
+    alignas(16) glm::vec3 cameraPos;
 };
 
 
 struct PointLight{
     alignas(16) glm::vec3 position  = glm::vec3(0.f);
-    alignas(4)  float     intensity = 100.f;
+    alignas(4)  float     intensity = 1000.f;
     alignas(16) glm::vec3 color     = glm::vec3(1.f);
 };
 
 struct DirectionalLight{
     alignas(16) glm::vec3 direction        = glm::vec3(0.f, 0.f, -1.f);
-    alignas(4)  float     normalIrradiance = 50.f;
+    alignas(4)  float     normalIrradiance = .1f;
     alignas(16) glm::vec3 color            = glm::vec3(1.f);
 };
 

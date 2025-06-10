@@ -20,6 +20,7 @@ void Camera::setMovementSpeed(float speed)                 { movementSpeed = spe
 void Camera::setMouseSensitivity(float xSens, float ySens) { mouseSensitivity.x = xSens; mouseSensitivity.y = ySens; }
 
 
+const glm::vec3& Camera::getPosition() const             { return position; }
 glm::mat4 Camera::getViewMatrix() const                  { return glm::lookAt(position, position + front, worldUp); }
 glm::mat4 Camera::getProjMatrix(float aspectRatio) const { return glm::perspective(glm::radians(fovY), aspectRatio, near, far); }
 

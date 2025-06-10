@@ -20,7 +20,7 @@ public:
 
     void setMaterial(const Material& material);
 
-    void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
+    void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const glm::vec3& cameraPos) const;
 
     void cleanup();
         

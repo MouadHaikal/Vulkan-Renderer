@@ -13,10 +13,11 @@ void Material::setTextureIndex(int index){
     textureIndex = index;
 }
 
-void Material::pushInfo(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const{
+void Material::pushInfo(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const glm::vec3& cameraPos) const{
     FragmentPushConstant fragmentPC;
-    fragmentPC.textureIndex = textureIndex;
     fragmentPC.albedoColor  = albedoColor;
+    fragmentPC.textureIndex = textureIndex;
+    fragmentPC.cameraPos    = cameraPos;
 
     vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(VertexPushConstant), sizeof(FragmentPushConstant), &fragmentPC);
 }

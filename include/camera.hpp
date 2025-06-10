@@ -3,7 +3,7 @@
 #include <utilities.hpp>
 
 
-constexpr glm::vec3 defaultPos     = glm::vec3(0.f, -10.f, 2.f);
+constexpr glm::vec3 defaultPos     = glm::vec3(0.f);
 constexpr glm::vec3 defaultWorldUp = glm::vec3(0.f, 0.f, 1.f);
 
 constexpr float     defaultYaw     = 0.f;
@@ -38,8 +38,9 @@ public:
     void setMovementSpeed(float speed);
     void setMouseSensitivity(float xSens, float ySens);
 
-    glm::mat4 getViewMatrix() const;
-    glm::mat4 getProjMatrix(float aspectRatio) const;
+    const glm::vec3& getPosition() const;
+    glm::mat4        getViewMatrix() const;
+    glm::mat4        getProjMatrix(float aspectRatio) const;
 
     void move(const glm::vec3& inputDir, float deltaTime);
     void rotate(float xOffset, float yOffset);

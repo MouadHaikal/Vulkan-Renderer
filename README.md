@@ -1,11 +1,12 @@
 # Vulkan Renderer
 
-A real‑time rasterization renderer written from scratch in modern C++ with [Vulkan](https://www.vulkan.org/) providing a clean foundation for experimenting with advanced rendering techniques offering high performance, low-level control, and seamless portability across Linux and Windows.
+A GPU-accelerated real‑time rasterization renderer written from scratch in modern C++ with [Vulkan](https://www.vulkan.org/) providing a clean foundation for experimenting with advanced rendering techniques offering high performance, low-level control, and seamless portability across Linux and Windows.
 <br/><br/>
 
 ## Table of Contents
 + [Features](#features)
-    + [Normal Mapping](#normal-mapping)
+    + [Normal Mapping](#normal-mapping) *(WIP)*
+    + [Blinn-Phong Lighting](#blinn-phong-lighting)
     + [Asset Loading](#asset-loading)
         + [3D Models](#3d-models)
         + [Textures](#textures)
@@ -14,11 +15,12 @@ A real‑time rasterization renderer written from scratch in modern C++ with [Vu
         + [Mipmapping](#mipmapping)
     + [Camera Controls](#camera-controls)
 + [Cloning](#cloning)
-  + [Building](#building)
+    + [Building](#building)
 <br/><br/>
 
 ## Features
-This is an active project with features continuously being added and refined.
+> [!NOTE]
+> This is an active project with features continuously being added and refined.
 <br/><br/>
 
 ## Normal Mapping
@@ -26,9 +28,32 @@ This is an active project with features continuously being added and refined.
     height="25"  
     style="vertical-align: middle;"  
     alt="WIP Icon" />  *Work In Progress...*
-<p align="center">
-    <img src="docs/screenshots/VertexNormals.png" width="600">
-</p>
+<br/><br/>
+
+## Blinn-Phong Lighting
+The renderer implements the Blinn-Phong reflection model supporting multiple point lights and directional lights, allowing dynamic illumination in the scene. The lighting calculations include ambient, diffuse, and specular components.
+
+
+<div align="center">
+    <table>
+        <tr>
+            <td><img src="docs/screenshots/Ambient.png"/></td>
+            <td><img src="docs/screenshots/Diffuse.png"/></td>
+        </tr>
+        <tr>
+            <td>Ambient</td>
+            <td>Diffuse</td>
+        </tr>
+        <tr>
+            <td><img src="docs/screenshots/Specular.png"/></td>
+            <td><img src="docs/screenshots/Normals.png"/></td>
+        </tr>
+        <tr>
+            <td>Specular</td>
+            <td>Normals</td>
+        </tr>
+    </table>
+</div>
 <br/><br/>
 
 ## Asset Loading
@@ -103,7 +128,8 @@ The renderer implements real-time user-controlled camera movement using [GLFW](h
 <br/><br/>
 
 ## Cloning
-This repository contains submodules for external dependencies. Clone recursively to ensure everything is fetched properly:
+> [!IMPORTANT]
+> This repository contains submodules for external dependencies. Clone recursively to ensure everything is fetched properly.
 ```
 git clone --recursive https://github.com/MouadHaikal/Vulkan-Renderer
 ```
