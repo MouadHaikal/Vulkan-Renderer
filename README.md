@@ -88,7 +88,7 @@ The renderer uses the [Assimp](https://github.com/assimp/assimp) library to load
 
 ### Textures
 Textures are loaded using [stb_image](https://github.com/nothings/stb/blob/master/stb_image.h). The renderer applies anisotropic filtering for higher-quality texture sampling at glancing angles and mipmaps are generated during upload to prevent aliasing and optimize performance. 
-<br/><br/>
+<br/><br/><br/>
 
 ## Anti Aliasing
 ### MSAA
