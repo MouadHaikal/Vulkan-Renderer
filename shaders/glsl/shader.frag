@@ -53,34 +53,40 @@ layout(push_constant) uniform FragmentPushConstant {
 
 
 
-vec3 normal;
+vec3 normal;    // World space normal
+vec3 baseCol;   // Base color
 
-vec3 evalPointLights(vec3 base);
-vec3 evalDirectionalLights(vec3 base);
+vec3 evalPointLights();
+vec3 evalDirectionalLights();
 
 
 void main(){
-    vec3 mapNormal = texture(normalTextureSamplers[nonuniformEXT(fpc.normalMapIndex)], fragTexCoord).rgb;
-    mapNormal = 2.0 * mapNormal - vec3(1.0);
-    normal = normalize(tbn * mapNormal);
+    // Setting global variables
+    if (fpc.normalMapIndex != -1) {
+        vec3 mapNormal = texture(normalTextureSamplers[nonuniformEXT(fpc.normalMapIndex)], fragTexCoord).rgb;
+        mapNormal = 2.0 * mapNormal - vec3(1.0);
+        normal = normalize(tbn * mapNormal);
+    } else {
+        normal = tbn[2];  // Interpolated vertex normal
+    }
 
-        
-    vec3 baseCol = fpc.baseTextureIndex != -1 ? 
+    baseCol = fpc.baseTextureIndex != -1 ? 
         texture(baseTextureSamplers[nonuniformEXT(fpc.baseTextureIndex)], fragTexCoord).rgb :
         fpc.albedoColor;
 
+
+    // Light calcultions
     vec3 fragCol = AMBIENT * baseCol;
 
-    fragCol += evalPointLights(baseCol);
-    fragCol += evalDirectionalLights(baseCol);
+    fragCol += evalPointLights();
+    fragCol += evalDirectionalLights();
 
     outColor = vec4(fragCol, 1.0);
-
     // outColor = vec4(0.5 * (normal + vec3(1.0)), 1.0);
 }
 
 
-vec3 evalPointLights(vec3 base){
+vec3 evalPointLights(){
     vec3 result = vec3(0.0);
     
     vec3  lightVec, viewVec, halfVec;
@@ -97,7 +103,7 @@ vec3 evalPointLights(vec3 base){
         attenuation = plData.lights[i].intensity / (distance * distance);
 
         result     += attenuation * plData.lights[i].color * (
-                DIFFUSE * max(0.0, dot(normal, lightVec)) * base +
+                DIFFUSE * max(0.0, dot(normal, lightVec)) * baseCol +
                 vec3(SPECULAR * pow(max(0.0, dot(normal, halfVec)), PHONG_EXP))
         );
     }
@@ -105,7 +111,7 @@ vec3 evalPointLights(vec3 base){
     return result;
 }
 
-vec3 evalDirectionalLights(vec3 base){
+vec3 evalDirectionalLights(){
     vec3 result = vec3(0.0);
 
     vec3 lightVec, viewVec, halfVec;
@@ -116,7 +122,7 @@ vec3 evalDirectionalLights(vec3 base){
         halfVec  = normalize(lightVec + viewVec);
 
         result  += dlData.lights[i].normalIrradiance * dlData.lights[i].color * (
-                DIFFUSE * max(0.0, dot(normal, lightVec)) * base +
+                DIFFUSE * max(0.0, dot(normal, lightVec)) * baseCol +
                 vec3(SPECULAR * pow(max(0.0, dot(normal, halfVec)), PHONG_EXP))
         );
     }

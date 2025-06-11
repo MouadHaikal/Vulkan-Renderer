@@ -17,6 +17,8 @@ public:
     };
 
 
+    TextureManager();
+
     // RGBA8888
     void addTexture(TextureType type, const std::string& name);
     void addEmbeddedTexture(TextureType type, const std::string& name ,void* pixels, int width, int height);

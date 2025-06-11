@@ -79,7 +79,7 @@ uint32_t utils::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags proper
     }
 
     LOG_FATAL("Failed to find suitable memory type");
-    abort();      // Already called in LOG_FATAL();
+    return 0;
 }
 
 VkCommandBuffer utils::beginSingleTimeCommands(VkCommandPool commandPool, VkDevice device){

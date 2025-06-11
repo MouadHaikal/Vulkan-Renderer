@@ -30,9 +30,9 @@ void main() {
     fragTexCoord = inTexCoord;
 
     tbn = mat3(
-        normalize(vec3(vpc.model * vec4(inTangent, 0.0))),
-        normalize(vec3(vpc.model * vec4(inBitangent, 0.0))),
-        normalize(vec3(vpc.model * vec4(inNormal, 0.0)))
+        normalize(mat3(vpc.model) * inTangent),
+        normalize(mat3(vpc.model) * inBitangent),
+        normalize(mat3(vpc.model) * inNormal)
     );
 
     gl_Position  = ubo.proj * ubo.view * worldPos;

@@ -9,6 +9,12 @@ VulkanContext TextureManager::context;
 void TextureManager::setContext(const VulkanContext &ctx){ context = ctx; }
 
 
+TextureManager::TextureManager(){
+    for (int type = TEX_TYPE_BASE; type < TEX_TYPE_ENUM_SIZE; ++type) {
+        textures[static_cast<TextureType>(type)] = {};
+    }
+}
+
 void TextureManager::addTexture(TextureType type, const std::string& name){
     if (textureIndices[type].find(name) != textureIndices[type].end()) {
         LOG_WARNING_S("Texture '" << name << "' already loaded");
@@ -57,10 +63,18 @@ size_t TextureManager::getTextureCount(TextureType type) const{
 }
 
 VkImageView TextureManager::getTextureImageView(TextureType type, size_t index) const{ 
+    if (index >= textures.at(type).size()) {
+        LOG_ERROR("Failed to get texture image view - index out of range");
+        return VK_NULL_HANDLE;
+    }
     return textures.at(type)[index].imageView; 
 }
 
 VkSampler TextureManager::getTextureSampler(TextureType type, size_t index) const{ 
+    if (index >= textures.at(type).size()) {
+        LOG_ERROR("Failed to get texture sampler - index out of range");
+        return VK_NULL_HANDLE;
+    }
     return textures.at(type)[index].sampler; 
 }
 
