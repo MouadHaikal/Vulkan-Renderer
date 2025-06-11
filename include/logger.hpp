@@ -14,11 +14,11 @@ public:
         FATAL
     };
 
-    struct logFlags{
+    struct LogFlags{
         bool traceSuccess;
         Level failureLevel;
 
-        logFlags(bool traceSuccess = false, Level failureLevel = Level::ERROR): 
+        LogFlags(bool traceSuccess = false, Level failureLevel = Level::ERROR): 
             traceSuccess(traceSuccess), failureLevel(failureLevel){}
     };
 
@@ -31,7 +31,7 @@ public:
     void setMinLevel(Level level);
 
     void log(Level level, const std::string& message) const;
-    void logResult(VkResult result, const std::string& operation, const logFlags& flags) const;
+    void logResult(VkResult result, const std::string& operation, const LogFlags& flags) const;
     void logDeviceInfo(VkPhysicalDevice device, QueueFamilyIndices queueFamilyIndices) const;
 
 
@@ -66,9 +66,9 @@ private:
 #define LOG_ERROR(msg)   Logger::get().log(Logger::Level::ERROR  , msg)
 #define LOG_FATAL(msg)   Logger::get().log(Logger::Level::FATAL  , msg)
 
-#define LOG_RESULT(result, operation)        Logger::get().logResult(result, operation, Logger::logFlags(true , Logger::Level::FATAL))
-#define LOG_RESULT_SILENT(result, operation) Logger::get().logResult(result, operation, Logger::logFlags(false, Logger::Level::FATAL))
-#define LOG_RESULT_OPT(result, operation)    Logger::get().logResult(result, operation, Logger::logFlags(true , Logger::Level::ERROR))
+#define LOG_RESULT(result, operation)        Logger::get().logResult(result, operation, Logger::LogFlags(true , Logger::Level::FATAL))
+#define LOG_RESULT_SILENT(result, operation) Logger::get().logResult(result, operation, Logger::LogFlags(false, Logger::Level::FATAL))
+#define LOG_RESULT_OPT(result, operation)    Logger::get().logResult(result, operation, Logger::LogFlags(true , Logger::Level::ERROR))
 
 // Can/Should only be used inside Renderer class - findQueueFamilies() function is defined in Renderer class
 #define LOG_DEVICE_INFO(device, queueFamilyIndices) Logger::get().logDeviceInfo(device, queueFamilyIndices);  

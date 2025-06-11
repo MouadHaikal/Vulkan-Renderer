@@ -54,7 +54,7 @@ void Logger::log(Level level, const std::string& message) const{
     }
 }
 
-void Logger::logResult(VkResult result, const std::string& operation, const logFlags& flags) const{
+void Logger::logResult(VkResult result, const std::string& operation, const LogFlags& flags) const{
     if (result == VK_SUCCESS) {
         if (flags.traceSuccess) {
             log(Level::TRACE, operation);

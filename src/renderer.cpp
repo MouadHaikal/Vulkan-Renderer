@@ -58,6 +58,9 @@ void Renderer::init(GLFWwindow * appWindow){
 
     createSyncObjects();
     LOG_TRACE(SEP);
+
+    initGUI();
+    LOG_TRACE(SEP);
 }
 
 void Renderer::processInput(InputData input, float deltaTime){
@@ -78,6 +81,9 @@ void Renderer::drawFrame(){
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         LOG_FATAL("Failed to acquire swapchain image");
     }
+
+
+    buildGUI();
 
     // Only reset fence if work is getting submitted to avoid deadlocks
     vkResetFences(device, 1, &inFlightFences[currentFrame]);
@@ -138,6 +144,11 @@ void Renderer::cleanup(){
     LOG_TRACE("Cleanup : scene");
     scene.cleanup();
 
+    LOG_TRACE("Cleanup : gui");
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
     LOG_TRACE("Cleanup : swapchain");
     cleanupSwapchain();
 
@@ -156,6 +167,7 @@ void Renderer::cleanup(){
     LOG_TRACE("Cleanup : descriptor pools");
     vkDestroyDescriptorPool(device, uboDescriptorPool, nullptr);
     vkDestroyDescriptorPool(device, texDescriptorPool, nullptr);
+    vkDestroyDescriptorPool(device, guiDescriptorPool, nullptr);
     vkDestroyDescriptorSetLayout(device, uboDescriptorSetLayout, nullptr);
     vkDestroyDescriptorSetLayout(device, texDescriptorSetLayout, nullptr);
 
@@ -197,7 +209,7 @@ void Renderer::createVulkanInstance(){
     appInfo.pApplicationName    = "Vulkan Renderer";
     appInfo.engineVersion       = VK_MAKE_VERSION(0, 1, 0);
     appInfo.pEngineName         = "Custom Engine";
-    appInfo.apiVersion          = VK_API_VERSION_1_3;
+    appInfo.apiVersion          = API_VERSION;
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -365,7 +377,7 @@ void Renderer::createSwapchain(){
     VkPresentModeKHR   presentMode   = chooseSwapPresentMode(swapchainSupport.presentModes);
     VkExtent2D         extent        = chooseSwapExtent(swapchainSupport.capabilities);
 
-    uint32_t           imageCount    = swapchainSupport.capabilities.minImageCount + 2;
+    uint32_t           imageCount    = swapchainSupport.capabilities.minImageCount + 1;
     // 'maxImageCount == 0' is a special value to indicate that there is no maximum
     // Check if imageCount has exceeded the maximum
     if (swapchainSupport.capabilities.maxImageCount && imageCount > swapchainSupport.capabilities.maxImageCount) {
@@ -975,6 +987,7 @@ void Renderer::createDescriptorPools(){
     createInfo.poolSizeCount = 1;
     createInfo.pPoolSizes    = &poolSize;
     createInfo.maxSets       = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    createInfo.flags         = 0;
 
     LOG_RESULT(
         vkCreateDescriptorPool(device, &createInfo, nullptr, &uboDescriptorPool),
@@ -992,10 +1005,26 @@ void Renderer::createDescriptorPools(){
     createInfo.poolSizeCount = 1;
     createInfo.pPoolSizes    = &poolSize;
     createInfo.maxSets       = 1;
+    createInfo.flags         = 0;
 
     LOG_RESULT(
         vkCreateDescriptorPool(device, &createInfo, nullptr, &texDescriptorPool),
         "Create textures descriptor pool"
+    );
+
+
+
+    poolSize.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSize.descriptorCount = IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE;
+
+    createInfo.poolSizeCount = 1;
+    createInfo.pPoolSizes    = &poolSize;
+    createInfo.maxSets       = poolSize.descriptorCount;
+    createInfo.flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+
+    LOG_RESULT(
+        vkCreateDescriptorPool(device, &createInfo, nullptr, &guiDescriptorPool), 
+        "Create GUI descriptor pool"
     );
 }
 
@@ -1163,6 +1192,35 @@ void Renderer::createSyncObjects(){
     }
 }
 
+void Renderer::initGUI(){
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplGlfw_InitForVulkan(window, true);
+    ImGui_ImplVulkan_InitInfo init_info{};
+
+    init_info.ApiVersion      = API_VERSION;
+    init_info.Instance        = instance;
+    init_info.PhysicalDevice  = physicalDevice;
+    init_info.Device          = device;
+    init_info.QueueFamily     = queueFamilyIndices.graphicsFamily.value();
+    init_info.Queue           = graphicsQueue;
+    init_info.PipelineCache   = nullptr;
+    init_info.DescriptorPool  = guiDescriptorPool;
+    init_info.RenderPass      = renderPass;
+    init_info.Subpass         = 0;
+    init_info.MinImageCount   = static_cast<uint32_t>(swapchainImages.size());
+    init_info.ImageCount      = static_cast<uint32_t>(swapchainImages.size());
+    init_info.MSAASamples     = msaaSamples;
+    init_info.Allocator       = nullptr;
+    init_info.CheckVkResultFn = [](VkResult res){ LOG_RESULT(res, "imgui"); };
+    ImGui_ImplVulkan_Init(&init_info);
+}
+
 void Renderer::recreateSwapchain(){
     // Handle minimization
     int width = 0, height = 0;
@@ -1185,6 +1243,8 @@ void Renderer::recreateSwapchain(){
     createDepthResources();
 
     createFramebuffers();
+
+    ImGui_ImplVulkan_SetMinImageCount(static_cast<uint32_t>(swapchainImages.size()));
     LOG_TRACE("-------------------------------------------------");
 }
 
@@ -1208,6 +1268,40 @@ void Renderer::cleanupSwapchain(){
     }
 
     vkDestroySwapchainKHR(device, swapchain, nullptr);
+}
+
+void Renderer::buildGUI(){
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    bool yes = true;
+    ImGui::ShowDemoWindow(&yes);
+
+    // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
+    {
+        static float f = 0.0f;
+        static int counter = 0;
+
+        ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+        ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+        ImGui::Checkbox("Demo Window", &yes);      // Edit bools storing our window open/close state
+
+        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+        ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
+        if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+            counter++;
+        ImGui::SameLine();
+        ImGui::Text("counter = %d", counter);
+
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+        ImGui::End();
+    }
 }
 
 
@@ -1619,6 +1713,9 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
         );
 
         scene.draw(commandBuffer, pipelineLayout, camera.getPosition());
+
+        ImGui::Render();
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
 
     vkCmdEndRenderPass(commandBuffer);
 

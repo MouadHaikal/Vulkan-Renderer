@@ -1,11 +1,16 @@
 #pragma once
 
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
+
 #include <scene.hpp>
 #include <camera.hpp>
 #include <inputHandler.hpp>
 
 
+const uint32_t API_VERSION = VK_API_VERSION_1_3;
 
 const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
@@ -98,6 +103,7 @@ private:
 
     VkDescriptorPool             uboDescriptorPool;
     VkDescriptorPool             texDescriptorPool;
+    VkDescriptorPool             guiDescriptorPool;
 
     std::vector<VkDescriptorSet> uboDescriptorSets;
     VkDescriptorSet              texDescriptorSet;
@@ -145,9 +151,15 @@ private:
     void createGraphicsCommandBuffers();
     void createSyncObjects();
 
+    void initGUI();
+
 
     void recreateSwapchain();
     void cleanupSwapchain();
+
+
+    void buildGUI();
+
 
 
 

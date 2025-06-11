@@ -156,7 +156,7 @@ git clone --recurse-submodules --shallow-submodules https://github.com/MouadHaik
 ## Resources
 - [Official Vulkan Documentation](https://docs.vulkan.org/spec/latest/chapters/introduction.html) (Documentation)
 - [Fundamentals of Computer Graphics](https://www.amazon.com/Fundamentals-Computer-Graphics-Steve-Marschner/dp/0367505037) (Book)
-- [Vulkan Tutorial](https://vulkan-tutorial.com/) (Book)
+- [Vulkan Tutorial](https://vulkan-tutorial.com/) (Tutorial)
 - [Official glTF Sample Assets](https://github.com/KhronosGroup/glTF-Sample-Assets/) (Assets)
 <br/><br/>
 
