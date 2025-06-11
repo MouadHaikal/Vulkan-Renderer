@@ -14,6 +14,8 @@
 #include <vector>
 #include <algorithm>
 #include <unordered_map>
+#include <type_traits>
+#include <functional>
 #include <cstddef>
 #include <cstdint>
 #include <unistd.h>
@@ -57,18 +59,12 @@ struct Vertex {
     glm::vec3 pos;
     glm::vec2 texCoord;
     glm::vec3 normal;
-
-    bool operator==(const Vertex& other) const;
+    glm::vec3 tangent;
+    glm::vec3 bitangent;
 
     static VkVertexInputBindingDescription                  getBindingDescription();
-    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
+    static std::array<VkVertexInputAttributeDescription, 5> getAttributeDescriptions();
 };
-
-namespace std {
-    template<> struct hash<Vertex> {
-        size_t operator()(const Vertex& vertex) const;
-    };
-}
 
 
 struct VPubo {
@@ -90,14 +86,27 @@ struct VulkanContext {
     VkCommandPool      transferCommandPool;
 };
 
+enum TextureType{
+    TEX_TYPE_BASE,
+    TEX_TYPE_NORMAL,
+
+    TEX_TYPE_ENUM_SIZE
+};
+
+constexpr std::array<VkFormat, TextureType::TEX_TYPE_ENUM_SIZE> textureFormats{
+    VK_FORMAT_R8G8B8A8_SRGB,    // Base
+    VK_FORMAT_R8G8B8A8_UNORM    // Normal
+};
+
 struct VertexPushConstant {
     alignas(16) glm::mat4 modelMatrix;
 };
 
 struct FragmentPushConstant {
     alignas(16) glm::vec3 albedoColor;
-    alignas(4)  int       textureIndex;
+    alignas(4)  int       baseTextureIndex;
     alignas(16) glm::vec3 cameraPos;
+    alignas(4)  int       normalMapIndex;
 };
 
 

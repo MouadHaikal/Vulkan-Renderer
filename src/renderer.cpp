@@ -468,10 +468,10 @@ void Renderer::createScene(){
     context.transferCommandPool = transferCommandPool;
 
     Scene::setContext(context);
-    scene.textureManager.addTexture("default.png");
+    scene.textureManager.addTexture(TEX_TYPE_BASE, "default.png");
 
 
-    auto sponzaModel = scene.addModel("sponza.obj");
+    auto sponzaModel = scene.addModel("Sponza.gltf");
 
     sponzaModel->modelMatrix = glm::rotate(
                                    glm::rotate(
@@ -532,14 +532,25 @@ void Renderer::createDescriptorSetLayouts(){
 
 
     // Textures
-    VkDescriptorSetLayoutBinding texturesLayoutBinding{};   // Combined image samplers
-    texturesLayoutBinding.binding         = 0;
-    texturesLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    texturesLayoutBinding.descriptorCount = static_cast<uint32_t>(scene.textureManager.getTextureCount());
-    texturesLayoutBinding.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+    VkDescriptorSetLayoutBinding baseTexLayoutBinding{};
+    baseTexLayoutBinding.binding         = 0;
+    baseTexLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    baseTexLayoutBinding.descriptorCount = static_cast<uint32_t>(scene.textureManager.getTextureCount(TEX_TYPE_BASE));
+    baseTexLayoutBinding.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    createInfo.bindingCount = 1,
-    createInfo.pBindings    = &texturesLayoutBinding;
+    VkDescriptorSetLayoutBinding normalTexLayoutBinding{};
+    normalTexLayoutBinding.binding         = 1;
+    normalTexLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    normalTexLayoutBinding.descriptorCount = static_cast<uint32_t>(scene.textureManager.getTextureCount(TEX_TYPE_NORMAL));
+    normalTexLayoutBinding.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    std::array<VkDescriptorSetLayoutBinding, 2> texturesLayoutBindings = {
+        baseTexLayoutBinding,
+        normalTexLayoutBinding
+    };
+
+    createInfo.bindingCount = static_cast<uint32_t>(texturesLayoutBindings.size());
+    createInfo.pBindings    = texturesLayoutBindings.data();
 
     LOG_RESULT(
         vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &texDescriptorSetLayout), 
@@ -973,7 +984,10 @@ void Renderer::createDescriptorPools(){
 
 
     poolSize.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize.descriptorCount = static_cast<uint32_t>(scene.textureManager.getTextureCount());
+    poolSize.descriptorCount = static_cast<uint32_t>(
+                                    scene.textureManager.getTextureCount(TEX_TYPE_BASE) +
+                                    scene.textureManager.getTextureCount(TEX_TYPE_NORMAL)
+    );
 
     createInfo.poolSizeCount = 1;
     createInfo.pPoolSizes    = &poolSize;
@@ -1021,34 +1035,34 @@ void Renderer::createDescriptorSets(){
         dlBufferInfo.range  = VK_WHOLE_SIZE;
 
 
-        std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
+        std::array<VkWriteDescriptorSet, 3> uboDescriptorWrites{};
 
-        descriptorWrites[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[0].dstSet          = uboDescriptorSets[i];
-        descriptorWrites[0].dstBinding      = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo     = &vpBufferInfo;
+        uboDescriptorWrites[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        uboDescriptorWrites[0].dstSet          = uboDescriptorSets[i];
+        uboDescriptorWrites[0].dstBinding      = 0;
+        uboDescriptorWrites[0].dstArrayElement = 0;
+        uboDescriptorWrites[0].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboDescriptorWrites[0].descriptorCount = 1;
+        uboDescriptorWrites[0].pBufferInfo     = &vpBufferInfo;
 
-        descriptorWrites[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[1].dstSet          = uboDescriptorSets[i];
-        descriptorWrites[1].dstBinding      = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pBufferInfo     = &plBufferInfo;
+        uboDescriptorWrites[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        uboDescriptorWrites[1].dstSet          = uboDescriptorSets[i];
+        uboDescriptorWrites[1].dstBinding      = 1;
+        uboDescriptorWrites[1].dstArrayElement = 0;
+        uboDescriptorWrites[1].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboDescriptorWrites[1].descriptorCount = 1;
+        uboDescriptorWrites[1].pBufferInfo     = &plBufferInfo;
 
-        descriptorWrites[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[2].dstSet          = uboDescriptorSets[i];
-        descriptorWrites[2].dstBinding      = 2;
-        descriptorWrites[2].dstArrayElement = 0;
-        descriptorWrites[2].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrites[2].descriptorCount = 1;
-        descriptorWrites[2].pBufferInfo     = &dlBufferInfo;
+        uboDescriptorWrites[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        uboDescriptorWrites[2].dstSet          = uboDescriptorSets[i];
+        uboDescriptorWrites[2].dstBinding      = 2;
+        uboDescriptorWrites[2].dstArrayElement = 0;
+        uboDescriptorWrites[2].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboDescriptorWrites[2].descriptorCount = 1;
+        uboDescriptorWrites[2].pBufferInfo     = &dlBufferInfo;
 
 
-        vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+        vkUpdateDescriptorSets(device, static_cast<uint32_t>(uboDescriptorWrites.size()), uboDescriptorWrites.data(), 0, nullptr);
     }
 
 
@@ -1063,25 +1077,43 @@ void Renderer::createDescriptorSets(){
     );
 
 
-    std::vector<VkDescriptorImageInfo> texturesInfo(scene.textureManager.getTextureCount());
-    for (size_t j=0; j < scene.textureManager.getTextureCount(); ++j) {
-        texturesInfo[j].sampler     = scene.textureManager.getTextureSampler(j);
-        texturesInfo[j].imageView   = scene.textureManager.getTextureImageView(j);
-        texturesInfo[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    std::array<VkWriteDescriptorSet, 2> texDescriptorWrites{};
+
+
+    std::vector<VkDescriptorImageInfo> baseTexturesInfo(scene.textureManager.getTextureCount(TEX_TYPE_BASE));
+    for (size_t i=0; i < scene.textureManager.getTextureCount(TEX_TYPE_BASE); ++i) {
+        baseTexturesInfo[i].sampler     = scene.textureManager.getTextureSampler(TEX_TYPE_BASE, i);
+        baseTexturesInfo[i].imageView   = scene.textureManager.getTextureImageView(TEX_TYPE_BASE, i);
+        baseTexturesInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    }
+
+    std::vector<VkDescriptorImageInfo> normalTexturesInfo(scene.textureManager.getTextureCount(TEX_TYPE_NORMAL));
+    for (size_t i=0; i < scene.textureManager.getTextureCount(TEX_TYPE_NORMAL); ++i) {
+        normalTexturesInfo[i].sampler     = scene.textureManager.getTextureSampler(TEX_TYPE_NORMAL, i);
+        normalTexturesInfo[i].imageView   = scene.textureManager.getTextureImageView(TEX_TYPE_NORMAL, i);
+        normalTexturesInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
 
 
-    VkWriteDescriptorSet descriptorWrite{};
+    texDescriptorWrites[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    texDescriptorWrites[0].dstSet          = texDescriptorSet;
+    texDescriptorWrites[0].dstBinding      = 0;
+    texDescriptorWrites[0].dstArrayElement = 0;
+    texDescriptorWrites[0].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    texDescriptorWrites[0].descriptorCount = static_cast<uint32_t>(baseTexturesInfo.size());
+    texDescriptorWrites[0].pImageInfo      = baseTexturesInfo.data();
 
-    descriptorWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet          = texDescriptorSet;
-    descriptorWrite.dstBinding      = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrite.descriptorCount = static_cast<uint32_t>(texturesInfo.size());
-    descriptorWrite.pImageInfo      = texturesInfo.data();
+    texDescriptorWrites[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    texDescriptorWrites[1].dstSet          = texDescriptorSet;
+    texDescriptorWrites[1].dstBinding      = 1;
+    texDescriptorWrites[1].dstArrayElement = 0;
+    texDescriptorWrites[1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    texDescriptorWrites[1].descriptorCount = static_cast<uint32_t>(normalTexturesInfo.size());
+    texDescriptorWrites[1].pImageInfo      = normalTexturesInfo.data();
 
-    vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+
+    vkUpdateDescriptorSets(device, static_cast<uint32_t>(texDescriptorWrites.size()), texDescriptorWrites.data(), 0, nullptr);
 }
 
 void Renderer::createGraphicsCommandBuffers(){

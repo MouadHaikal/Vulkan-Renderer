@@ -35,9 +35,13 @@ void Model::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout,
 void Model::loadModel(const std::string& path, Scene* parentScene){
     Assimp::Importer importer;
 
-    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices);
+    const aiScene* scene = importer.ReadFile(path, aiProcess_CalcTangentSpace |
+                                                   aiProcess_Triangulate |
+                                                   aiProcess_FlipUVs |
+                                                   aiProcess_JoinIdenticalVertices
+    );
     if (!scene) { 
-        LOG_ERROR("Failed to load model (" + path + ")");
+        LOG_ERROR("Failed to load model (" + path + ") - " + importer.GetErrorString());
         return;
     }
 
@@ -54,42 +58,72 @@ void Model::loadTextures(const aiScene* scene, Scene* parentScene, const std::st
     for (size_t i = 0; i < scene->mNumMaterials; ++i) {
         aiMaterial* material = scene->mMaterials[i];
 
-        if (material->GetTextureCount(aiTextureType_DIFFUSE)) {
-            aiString path;
+        aiString path;
 
-            if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
-                const aiTexture* texture = scene->GetEmbeddedTexture(path.C_Str());
+        // Base
+        if (material->GetTextureCount(aiTextureType_DIFFUSE) && 
+            material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS
+        ) {
+            const aiTexture* embeddedTex = scene->GetEmbeddedTexture(path.C_Str());
 
-                if (texture) {   // Embedded texture
-                    std::string textureName = modelName + path.C_Str();
+            if (embeddedTex) {
+                std::string embeddedTexName = modelName + path.C_Str();
 
-                    if (texture->mHeight) {   // Not compressed
-                        parentScene->textureManager.addEmbeddedTexture(textureName,
-                                                                       texture->pcData, 
-                                                                       texture->mWidth, texture->mHeight
-                        );
-                    }
-                    else {    // Compressed
-                        int width, height, channels;
-                        stbi_uc* pixels = stbi_load_from_memory(reinterpret_cast<stbi_uc*>(texture->pcData), 
-                                                                texture->mWidth, &width, &height, &channels, 
-                                                                STBI_rgb_alpha
-                        );
-
-                        parentScene->textureManager.addEmbeddedTexture(textureName, 
-                                                                       pixels, 
-                                                                       width, height
-                        );
-                    }
+                if (embeddedTex->mHeight) {   // Not compressed
+                    parentScene->textureManager.addEmbeddedTexture(TEX_TYPE_BASE, embeddedTexName,
+                                                                   embeddedTex->pcData, 
+                                                                   embeddedTex->mWidth, embeddedTex->mHeight
+                    );
                 }
-                else {    // External texture
-                    parentScene->textureManager.addTexture(utils::getFileName(path.C_Str())); 
+                else {    // Compressed
+                    int width, height, channels;
+                    stbi_uc* pixels = stbi_load_from_memory(reinterpret_cast<stbi_uc*>(embeddedTex->pcData), 
+                                                            embeddedTex->mWidth, &width, &height, &channels, 
+                                                            STBI_rgb_alpha
+                    );
+
+                    parentScene->textureManager.addEmbeddedTexture(TEX_TYPE_BASE, embeddedTexName, 
+                                                                   pixels, 
+                                                                   width, height
+                    );
                 }
-            } 
+            }
+            else {
+                parentScene->textureManager.addTexture(TEX_TYPE_BASE, utils::getFileName(path.C_Str())); 
+            }
         }
 
-        if (material->GetTextureCount(aiTextureType_NORMALS)) {
-            LOG_WARNING("3ndo normal map");
+        // Normal
+        if (material->GetTextureCount(aiTextureType_NORMALS) &&
+            material->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS
+        ) {
+            const aiTexture* embeddedTex = scene->GetEmbeddedTexture(path.C_Str());
+
+            if (embeddedTex) {
+                std::string embeddedTexName = modelName + path.C_Str();
+
+                if (embeddedTex->mHeight) {   // Not compressed
+                    parentScene->textureManager.addEmbeddedTexture(TEX_TYPE_NORMAL, embeddedTexName,
+                                                                   embeddedTex->pcData, 
+                                                                   embeddedTex->mWidth, embeddedTex->mHeight
+                    );
+                }
+                else {    // Compressed
+                    int width, height, channels;
+                    stbi_uc* pixels = stbi_load_from_memory(reinterpret_cast<stbi_uc*>(embeddedTex->pcData), 
+                                                            embeddedTex->mWidth, &width, &height, &channels, 
+                                                            STBI_rgb_alpha
+                    );
+
+                    parentScene->textureManager.addEmbeddedTexture(TEX_TYPE_NORMAL, embeddedTexName, 
+                                                                   pixels, 
+                                                                   width, height
+                    );
+                }
+            }
+            else {
+                parentScene->textureManager.addTexture(TEX_TYPE_NORMAL, utils::getFileName(path.C_Str())); 
+            }
         }
     }
 }
@@ -110,7 +144,9 @@ void Model::loadNodeRec(const aiNode* node, const aiScene* scene, Scene* parentS
             }
 
             if (mesh->HasNormals()) {
-                meshData.vertices[j].normal = { mesh->mNormals[j].x, mesh->mNormals[j].y, mesh->mNormals[j].z };
+                meshData.vertices[j].normal    = { mesh->mNormals[j].x, mesh->mNormals[j].y, mesh->mNormals[j].z };
+                meshData.vertices[j].tangent   = { mesh->mTangents[j].x, mesh->mTangents[j].y, mesh->mTangents[j].z };
+                meshData.vertices[j].bitangent = { mesh->mBitangents[j].x, mesh->mBitangents[j].y, mesh->mBitangents[j].z };
             }
         }
     
@@ -127,24 +163,34 @@ void Model::loadNodeRec(const aiNode* node, const aiScene* scene, Scene* parentS
         if (mesh->HasTextureCoords(0)) {
             aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
-            if (material->GetTextureCount(aiTextureType_DIFFUSE)) {
-                aiString path;
+            aiString path;
 
-                if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
-                    const aiTexture* texture = scene->GetEmbeddedTexture(path.C_Str());
+            // Base
+            if (material->GetTextureCount(aiTextureType_DIFFUSE) &&
+                material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS
+            ) {
+                const aiTexture* texture = scene->GetEmbeddedTexture(path.C_Str());
 
-                    // Get texture name according to texture type (embedded/external)
-                    std::string textureName = texture ? modelName + path.C_Str() : utils::getFileName(path.C_Str());
+                // Get texture name based on texture type (embedded/external)
+                std::string textureName = texture ? modelName + path.C_Str() : utils::getFileName(path.C_Str());
 
-                    int textureIndex = parentScene->textureManager.getTextureIndex(textureName);
-                    meshData.material.setTextureIndex(textureIndex);
-                } 
+                int textureIndex = parentScene->textureManager.getTextureIndex(TEX_TYPE_BASE, textureName);
+                meshData.material.setTextureIndex(TEX_TYPE_BASE, textureIndex);
+            }
+
+            // Normal
+            if (material->GetTextureCount(aiTextureType_NORMALS) &&
+                material->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS
+            ){
+                const aiTexture* texture = scene->GetEmbeddedTexture(path.C_Str());
+
+                // Get texture name based on texture type (embedded/external)
+                std::string textureName = texture ? modelName + path.C_Str() : utils::getFileName(path.C_Str());
+
+                int textureIndex = parentScene->textureManager.getTextureIndex(TEX_TYPE_NORMAL, textureName);
+                meshData.material.setTextureIndex(TEX_TYPE_NORMAL, textureIndex);
             }
         }
-        else {
-            meshData.material.setTextureIndex(-1);
-        }
-
 
         meshes.emplace_back(std::make_unique<Mesh>(&meshData, &modelMatrix));
     }

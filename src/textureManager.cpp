@@ -9,8 +9,8 @@ VulkanContext TextureManager::context;
 void TextureManager::setContext(const VulkanContext &ctx){ context = ctx; }
 
 
-void TextureManager::addTexture(const std::string& name){
-    if (textureIndices.find(name) != textureIndices.end()) {
+void TextureManager::addTexture(TextureType type, const std::string& name){
+    if (textureIndices[type].find(name) != textureIndices[type].end()) {
         LOG_WARNING_S("Texture '" << name << "' already loaded");
         return;
     }
@@ -22,54 +22,62 @@ void TextureManager::addTexture(const std::string& name){
 
     stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     if (!pixels) {
-        LOG_WARNING("Failed to load texture image (" + path + ")");
+        LOG_WARNING("Failed to load texture (" + path + ")");
         return;
     } 
 
 
-    textureIndices[name] = static_cast<int>(textures.size());
-    textures.push_back(createTexture(pixels, texWidth, texHeight));
+    textureIndices[type][name] = static_cast<int>(textures[type].size());
+    textures[type].push_back(createTexture(pixels, texWidth, texHeight, textureFormats[type]));
 
     LOG_DEBUG("Texture loaded (" + name + ")");
 }
 
-void TextureManager::addEmbeddedTexture(const std::string& name ,void* pixels, int width, int height){
-    textureIndices[name] = static_cast<int>(textures.size());
-    textures.push_back(createTexture(pixels, width, height));
+void TextureManager::addEmbeddedTexture(TextureType type, const std::string& name ,void* pixels, int width, int height){
+    textureIndices[type][name] = static_cast<int>(textures[type].size());
+    textures[type].push_back(createTexture(pixels, width, height, textureFormats[type]));
 
     LOG_DEBUG("Embedded texture loaded (" + name + ")");
 }
 
 
-int TextureManager::getTextureIndex(const std::string& name) const{
-    if (textureIndices.find(name) == textureIndices.end()) {
-        LOG_WARNING_S("Texture '" << name << "' not found");
+int TextureManager::getTextureIndex(TextureType type, const std::string& name) const{
+    if (name.empty()) return -1;
+
+    if (textureIndices.at(type).find(name) == textureIndices.at(type).end()) {
+        LOG_WARNING_S("Texture not found (" << name << ")");
         return -1;
     }
 
-    return textureIndices.at(name);
+    return textureIndices.at(type).at(name);
 }
 
-size_t TextureManager::getTextureCount() const{
-    return textures.size();
+size_t TextureManager::getTextureCount(TextureType type) const{
+    return textures.at(type).size();
 }
 
-VkImageView TextureManager::getTextureImageView(size_t index) const{ return textures[index].imageView; }
+VkImageView TextureManager::getTextureImageView(TextureType type, size_t index) const{ 
+    return textures.at(type)[index].imageView; 
+}
 
-VkSampler TextureManager::getTextureSampler(size_t index) const{ return textures[index].sampler; }
+VkSampler TextureManager::getTextureSampler(TextureType type, size_t index) const{ 
+    return textures.at(type)[index].sampler; 
+}
 
 
 void TextureManager::cleanup(){
-    for (auto& texture : textures) {
-        vkDestroyImageView(context.device, texture.imageView, nullptr);
-        vkDestroyImage(context.device, texture.image, nullptr);
-        vkFreeMemory(context.device, texture.imageMemory, nullptr);
-        vkDestroySampler(context.device, texture.sampler, nullptr);
+    for (int type = TEX_TYPE_BASE; type != TEX_TYPE_ENUM_SIZE; ++type) {
+        for (auto& texture : textures[static_cast<TextureType>(type)]) {
+            vkDestroyImageView(context.device, texture.imageView, nullptr);
+            vkDestroyImage(context.device, texture.image, nullptr);
+            vkFreeMemory(context.device, texture.imageMemory, nullptr);
+            vkDestroySampler(context.device, texture.sampler, nullptr);
+        }
     }
 }
 
 
-TextureManager::Texture TextureManager::createTexture(void* pixels, int width, int height){
+TextureManager::Texture TextureManager::createTexture(void* pixels, int width, int height, VkFormat format){
     Texture texture;
 
 
@@ -100,7 +108,7 @@ TextureManager::Texture TextureManager::createTexture(void* pixels, int width, i
     utils::createImage("texture", 
                        width, height, 
                        mipLevels, VK_SAMPLE_COUNT_1_BIT,
-                       VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, 
+                       format, VK_IMAGE_TILING_OPTIMAL, 
                        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, 
                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                        texture.image, texture.imageMemory,
@@ -109,7 +117,7 @@ TextureManager::Texture TextureManager::createTexture(void* pixels, int width, i
 
 
     utils::transitionImageLayout(texture.image, 
-                                 VK_FORMAT_R8G8B8A8_SRGB, mipLevels,
+                                 format, mipLevels,
                                  VK_IMAGE_LAYOUT_UNDEFINED,
                                  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                  context.device, context.graphicsQueue, context.graphicsCommandPool
@@ -122,7 +130,7 @@ TextureManager::Texture TextureManager::createTexture(void* pixels, int width, i
     );
 
 
-    generateMipmaps(texture.image, VK_FORMAT_R8G8B8A8_SRGB, width, height, mipLevels);
+    generateMipmaps(texture.image, format, width, height, mipLevels);
 
 
     vkDestroyBuffer(context.device, stagingBuffer, nullptr);
@@ -131,7 +139,7 @@ TextureManager::Texture TextureManager::createTexture(void* pixels, int width, i
 
     utils::createImageView("texture", 
                            texture.image, 
-                           VK_FORMAT_R8G8B8A8_SRGB,
+                           format,
                            mipLevels, VK_IMAGE_ASPECT_COLOR_BIT,
                            texture.imageView, context.device
     );

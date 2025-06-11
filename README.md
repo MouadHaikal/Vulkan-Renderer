@@ -4,8 +4,9 @@ A GPU-accelerated real‑time rasterization renderer written from scratch in mod
 <br/><br/>
 
 ## Table of Contents
+> Latest to oldest
 + [Features](#features)
-    + [Normal Mapping](#normal-mapping) *(WIP)*
+    + [Normal Mapping](#normal-mapping)
     + [Blinn-Phong Lighting](#blinn-phong-lighting)
     + [Asset Loading](#asset-loading)
         + [3D Models](#3d-models)
@@ -16,6 +17,8 @@ A GPU-accelerated real‑time rasterization renderer written from scratch in mod
     + [Camera Controls](#camera-controls)
 + [Cloning](#cloning)
     + [Building](#building)
++ [Resources](#resources)
++ [Contact](#contact)
 <br/><br/>
 
 ## Features
@@ -24,10 +27,19 @@ A GPU-accelerated real‑time rasterization renderer written from scratch in mod
 <br/><br/>
 
 ## Normal Mapping
-<img src="https://img.icons8.com/?size=100&id=d0hMePbLym7W&format=png&color=000000"  
-    height="25"  
-    style="vertical-align: middle;"  
-    alt="WIP Icon" />  *Work In Progress...*
+Normal mapping is implemented using tangent-space normal maps to simulate high-frequency surface detail without increasing mesh complexity. The TBN matrix (tangent, bitangent, normal) is constructed in the vertex shader and passed to the fragment shader.
+<div align="center">
+    <table>
+        <tr>
+            <td><img src="docs/screenshots/NoNormalMapping.png"/></td>
+            <td><img src="docs/screenshots/NormalMapping.png"/></td>
+        </tr>
+        <tr>
+            <td>No normal mapping</td>
+            <td>Normal mapped</td>
+        </tr>
+    </table>
+</div>
 <br/><br/>
 
 ## Blinn-Phong Lighting
@@ -131,10 +143,22 @@ The renderer implements real-time user-controlled camera movement using [GLFW](h
 > [!IMPORTANT]
 > This repository contains submodules for external dependencies. Clone recursively to ensure everything is fetched properly.
 ```
-git clone --recursive https://github.com/MouadHaikal/Vulkan-Renderer
+git clone --recurse-submodules --shallow-submodules https://github.com/MouadHaikal/Vulkan-Renderer
 ```
 ### Building
 <img src="https://img.icons8.com/?size=100&id=d0hMePbLym7W&format=png&color=000000"  
     height="25"  
     style="vertical-align: middle;"  
     alt="WIP Icon" />  *Work In Progress...*
+
+<br/><br/>
+
+## Resources
+- [Official Vulkan Documentation](https://docs.vulkan.org/spec/latest/chapters/introduction.html) (Documentation)
+- [Fundamentals of Computer Graphics](https://www.amazon.com/Fundamentals-Computer-Graphics-Steve-Marschner/dp/0367505037) (Book)
+- [Vulkan Tutorial](https://vulkan-tutorial.com/) (Book)
+- [Official glTF Sample Assets](https://github.com/KhronosGroup/glTF-Sample-Assets/) (Assets)
+<br/><br/>
+
+## Contact
+If you have any remarks, questions, or contributions regarding this project, feel free to reach out to me at mouad.haikal@um6p.ma

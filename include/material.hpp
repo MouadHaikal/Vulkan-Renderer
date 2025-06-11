@@ -7,14 +7,14 @@ constexpr glm::vec3 defaultColor = glm::vec3(.3f);
 
 class Material{
 public:
-    Material(int textureIndex = -1, glm::vec3 albedoColor = defaultColor);
+    Material(glm::vec3 albedoColor = defaultColor);
 
-    void setTextureIndex(int index);
+    void setTextureIndex(TextureType type, int index);
 
     void pushInfo(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const glm::vec3& cameraPos) const;
 
 private:
 
     glm::vec3 albedoColor;
-    int       textureIndex;
+    std::unordered_map<TextureType, int> textureIndices;
 };

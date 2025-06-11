@@ -12,7 +12,7 @@ const int   PHONG_EXP = 200;
 
 layout(location = 0) in vec3 fragPosition;
 layout(location = 1) in vec2 fragTexCoord;
-layout(location = 2) in vec3 fragNormal;
+layout(location = 2) in mat3 tbn;
 
 layout(location = 0) out vec4 outColor;
 
@@ -40,35 +40,47 @@ layout(set = 0, binding = 2) uniform DirectionalLightData{
 } dlData;
 
 
-layout(set = 1, binding = 0) uniform sampler2D combinedTextureSamplers[];
+layout(set = 1, binding = 0) uniform sampler2D baseTextureSamplers[];
+layout(set = 1, binding = 1) uniform sampler2D normalTextureSamplers[];
 
 
 layout(push_constant) uniform FragmentPushConstant {
     layout(offset = 64) vec3 albedoColor;
-    layout(offset = 76) int  textureIndex;
+    layout(offset = 76) int  baseTextureIndex;
     layout(offset = 80) vec3 cameraPos;
+    layout(offset = 92) int  normalMapIndex;
 } fpc;
 
 
-vec3 evaluatePointLights(vec3 base);
-vec3 evaluateDirectionalLights(vec3 base);
+
+vec3 normal;
+
+vec3 evalPointLights(vec3 base);
+vec3 evalDirectionalLights(vec3 base);
+
 
 void main(){
-    vec3 baseCol = fpc.textureIndex != -1 ? 
-        texture(combinedTextureSamplers[nonuniformEXT(fpc.textureIndex)], fragTexCoord).rgb :
+    vec3 mapNormal = texture(normalTextureSamplers[nonuniformEXT(fpc.normalMapIndex)], fragTexCoord).rgb;
+    mapNormal = 2.0 * mapNormal - vec3(1.0);
+    normal = normalize(tbn * mapNormal);
+
+        
+    vec3 baseCol = fpc.baseTextureIndex != -1 ? 
+        texture(baseTextureSamplers[nonuniformEXT(fpc.baseTextureIndex)], fragTexCoord).rgb :
         fpc.albedoColor;
 
     vec3 fragCol = AMBIENT * baseCol;
 
-    fragCol += evaluatePointLights(baseCol);
-    fragCol += evaluateDirectionalLights(baseCol);
+    fragCol += evalPointLights(baseCol);
+    fragCol += evalDirectionalLights(baseCol);
 
     outColor = vec4(fragCol, 1.0);
 
-    // outColor = vec4((fragNormal.x + 1) / 2, (fragNormal.y + 1) / 2, (fragNormal.z + 1) / 2, 1.0);
+    // outColor = vec4(0.5 * (normal + vec3(1.0)), 1.0);
 }
 
-vec3 evaluatePointLights(vec3 base){
+
+vec3 evalPointLights(vec3 base){
     vec3 result = vec3(0.0);
     
     vec3  lightVec, viewVec, halfVec;
@@ -85,15 +97,15 @@ vec3 evaluatePointLights(vec3 base){
         attenuation = plData.lights[i].intensity / (distance * distance);
 
         result     += attenuation * plData.lights[i].color * (
-                DIFFUSE * max(0.0, dot(fragNormal, lightVec)) * base +
-                vec3(SPECULAR * pow(max(0.0, dot(fragNormal, halfVec)), PHONG_EXP))
+                DIFFUSE * max(0.0, dot(normal, lightVec)) * base +
+                vec3(SPECULAR * pow(max(0.0, dot(normal, halfVec)), PHONG_EXP))
         );
     }
 
     return result;
 }
 
-vec3 evaluateDirectionalLights(vec3 base){
+vec3 evalDirectionalLights(vec3 base){
     vec3 result = vec3(0.0);
 
     vec3 lightVec, viewVec, halfVec;
@@ -104,8 +116,8 @@ vec3 evaluateDirectionalLights(vec3 base){
         halfVec  = normalize(lightVec + viewVec);
 
         result  += dlData.lights[i].normalIrradiance * dlData.lights[i].color * (
-                DIFFUSE * max(0.0, dot(fragNormal, lightVec)) * base +
-                vec3(SPECULAR * pow(max(0.0, dot(fragNormal, halfVec)), PHONG_EXP))
+                DIFFUSE * max(0.0, dot(normal, lightVec)) * base +
+                vec3(SPECULAR * pow(max(0.0, dot(normal, halfVec)), PHONG_EXP))
         );
     }
 
