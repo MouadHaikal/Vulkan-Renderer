@@ -36,6 +36,7 @@ const std::filesystem::path dirRoot     = std::filesystem::path(__FILE__).parent
 const std::filesystem::path dirShaders  = dirRoot / "shaders" / "spirv";
 const std::filesystem::path dirModels   = dirRoot / "assets" / "models";
 const std::filesystem::path dirTextures = dirRoot / "assets" / "textures";
+const std::filesystem::path dirFonts    = dirRoot / "assets" / "fonts";
 
 
 
