@@ -28,8 +28,8 @@ A real‑time rasterization renderer written from scratch in C++17 with [Vulkan]
 <br/><br/>
 
 ## GUI
-This project makes use of the docking branch of [ImGui](https://github.com/ocornut/imgui) to render a few useful UI elements. Will probably be expanded later with plans to add interactive gizmo. Plots are created using [ImPlot](https://github.com/epezent/implot). 
-*For now, the escape key switches between controlling the UI and the camera.*
+This project makes use of the docking branch of [ImGui](https://github.com/ocornut/imgui) to render a few useful UI elements. Will probably be expanded later with plans to add interactive gizmo. Plots are created using [ImPlot](https://github.com/epezent/implot).<br/> 
+*For now, the Escape key switches between controlling the UI and the camera.*
 <div align="center">
     <table>
         <tr>
@@ -43,7 +43,7 @@ This project makes use of the docking branch of [ImGui](https://github.com/ocorn
 <br/><br/>
 
 ## Normal Mapping
-Normal mapping is handled using tangent-space normal maps to add surface detail without increasing mesh complexity. The TBN matrix is built in the vertex shader and passed to the fragment shader for lighting calculations.
+Normal mapping is handled using tangent-space normal maps. The TBN matrix is built in the vertex shader and passed to the fragment shader for lighting calculations.
 <div align="center">
     <table>
         <tr>
@@ -99,7 +99,7 @@ This project uses the [Assimp](https://github.com/assimp/assimp) library to load
 </div>
 
 ### Textures
-Textures are loaded using [stb_image](https://github.com/nothings/stb/blob/master/stb_image.h). The renderer applies anisotropic filtering and mipmaps are generated during upload. 
+Textures are loaded using [stb_image](https://github.com/nothings/stb/blob/master/stb_image.h). The renderer applies anisotropic filtering, and mipmaps are generated during upload. 
 <br/><br/><br/>
 
 ## Anti Aliasing
@@ -135,7 +135,7 @@ Mipmaps are procedurally generated for each texture improving performance and re
 <br/><br/>
 
 ## Camera Controls
-The renderer lets you move around in real time using [GLFW](https://github.com/glfw/glfw) for input. Navigate using WASD and look around with the mouse. Hit **escape** to free the cursor.
+The renderer lets you move around in real time using [GLFW](https://github.com/glfw/glfw) for input. Navigate using WASD and look around with the mouse. Hit Escape to free the cursor.
 <div align="center">
     <table>
         <tr>
