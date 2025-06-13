@@ -1,11 +1,12 @@
 # Vulkan Renderer
 
-A GPU-accelerated real‑time rasterization renderer written from scratch in modern C++ with [Vulkan](https://www.vulkan.org/) providing a clean foundation for experimenting with advanced rendering techniques offering high performance, low-level control, and seamless portability across Linux and Windows.
+A real‑time rasterization renderer written from scratch in C++17 with [Vulkan](https://www.vulkan.org/) providing a clean foundation for experimenting with advanced rendering techniques offering high performance, low-level control, and seamless portability across Linux and Windows *(Not really for now. Windows is being windows)*.
 <br/><br/>
 
 ## Table of Contents
-> Latest to oldest
+> Latest first
 + [Features](#features)
+    + [GUI](#gui)
     + [Normal Mapping](#normal-mapping)
     + [Blinn-Phong Lighting](#blinn-phong-lighting)
     + [Asset Loading](#asset-loading)
@@ -26,8 +27,23 @@ A GPU-accelerated real‑time rasterization renderer written from scratch in mod
 > This is an active project with features continuously being added and refined.
 <br/><br/>
 
+## GUI
+This project makes use of the docking branch of [ImGui](https://github.com/ocornut/imgui) to render a few useful UI elements. Will probably be expanded later with plans to add interactive gizmo. Plots are created using [ImPlot](https://github.com/epezent/implot). 
+*For now, the escape key switches between controlling the UI and the camera.*
+<div align="center">
+    <table>
+        <tr>
+            <td><img src="docs/screenshots/GUI.png"/></td>
+        </tr>
+        <tr>
+            <td>UI Showcase</td>
+        </tr>
+    </table>
+</div>
+<br/><br/>
+
 ## Normal Mapping
-Normal mapping is implemented using tangent-space normal maps to simulate high-frequency surface detail without increasing mesh complexity. The TBN matrix (tangent, bitangent, normal) is constructed in the vertex shader and passed to the fragment shader.
+Normal mapping is handled using tangent-space normal maps to add surface detail without increasing mesh complexity. The TBN matrix is built in the vertex shader and passed to the fragment shader for lighting calculations.
 <div align="center">
     <table>
         <tr>
@@ -43,9 +59,7 @@ Normal mapping is implemented using tangent-space normal maps to simulate high-f
 <br/><br/>
 
 ## Blinn-Phong Lighting
-The renderer implements the Blinn-Phong reflection model supporting multiple point lights and directional lights, allowing dynamic illumination in the scene. The lighting calculations include ambient, diffuse, and specular components.
-
-
+The renderer implements the Blinn-Phong reflection model supporting multiple point and directional lights, allowing dynamic illumination in the scene. Lighting calculations include ambient, diffuse, and specular components.
 <div align="center">
     <table>
         <tr>
@@ -70,9 +84,7 @@ The renderer implements the Blinn-Phong reflection model supporting multiple poi
 
 ## Asset Loading
 ### 3D Models
-The renderer uses the [Assimp](https://github.com/assimp/assimp) library to load 40+ 3D-file-formats. Once loaded, vertex and index data are extracted and used to create GPU buffers. These models are then smoothly integrated into the scene hierarchy, allowing complex models with multiple meshes and materials to be handled seamlessly.
-
-
+This project uses the [Assimp](https://github.com/assimp/assimp) library to load 40+ 3D-file-formats. Once loaded, the models are smoothly integrated into the scene hierarchy.
 <div align="center">
     <table>
         <tr>
@@ -87,13 +99,12 @@ The renderer uses the [Assimp](https://github.com/assimp/assimp) library to load
 </div>
 
 ### Textures
-Textures are loaded using [stb_image](https://github.com/nothings/stb/blob/master/stb_image.h). The renderer applies anisotropic filtering for higher-quality texture sampling at glancing angles and mipmaps are generated during upload to prevent aliasing and optimize performance. 
+Textures are loaded using [stb_image](https://github.com/nothings/stb/blob/master/stb_image.h). The renderer applies anisotropic filtering and mipmaps are generated during upload. 
 <br/><br/><br/>
 
 ## Anti Aliasing
 ### MSAA
-Multi-Sample Anti-Aliasing is implemented to smooth jagged edges by sampling each pixel multiple times and averaging the results. This technique significantly improves visual quality with minimal performance impact, and is integrated directly into the render pass and framebuffer pipeline.
-
+The renderer includes built-in support for MSAA to improve image quality and reduce aliasing artifacts.
 <div align="center">
     <table>
         <tr>
@@ -109,7 +120,6 @@ Multi-Sample Anti-Aliasing is implemented to smooth jagged edges by sampling eac
 
 ### Mipmapping
 Mipmaps are procedurally generated for each texture improving performance and reducing aliasing during minification. Mipmap levels are selected dynamically based on texture resolution.
-
 <div align="center">
     <table>
         <tr>
@@ -125,8 +135,7 @@ Mipmaps are procedurally generated for each texture improving performance and re
 <br/><br/>
 
 ## Camera Controls
-The renderer implements real-time user-controlled camera movement using [GLFW](https://github.com/glfw/glfw) for input handling. The camera supports first-person navigation (WASD) and free-look via mouse movement. Input events are processed each frame and translated into position/orientation updates, enabling intuitive scene exploration.
-
+The renderer lets you move around in real time using [GLFW](https://github.com/glfw/glfw) for input. Navigate using WASD and look around with the mouse. Hit **escape** to free the cursor.
 <div align="center">
     <table>
         <tr>

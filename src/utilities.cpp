@@ -142,7 +142,7 @@ void utils::createBuffer(const std::string& name,
     }
 
 
-    LOG_RESULT(
+    LOG_RESULT_SILENT(
         vkCreateBuffer(device, &createInfo, nullptr, &buffer),
         "Create " + name + " buffer"
     );
@@ -156,7 +156,7 @@ void utils::createBuffer(const std::string& name,
     allocInfo.allocationSize  = memRequirements.size;
     allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties, physicalDevice);
 
-    LOG_RESULT(
+    LOG_RESULT_SILENT(
         vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory),
         "Allocate " + name + " buffer memory"
     );
@@ -202,7 +202,7 @@ void utils::createImage(const std::string& name,
         createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     }
 
-    LOG_RESULT(
+    LOG_RESULT_SILENT(
         vkCreateImage(device, &createInfo, nullptr, &image), 
         "Create " + name + " image"
     );
@@ -216,7 +216,7 @@ void utils::createImage(const std::string& name,
     allocInfo.allocationSize  = memRequirements.size;
     allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties, physicalDevice);
 
-    LOG_RESULT(
+    LOG_RESULT_SILENT(
         vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory), 
         "Allocate " + name + " image memory"
     );
@@ -225,8 +225,6 @@ void utils::createImage(const std::string& name,
 }
 
 void utils::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDevice device, VkQueue queue, VkCommandPool commandPool){
-    LOG_TRACE("Copying buffer");
-
     VkCommandBuffer transferCommandBuffer = beginSingleTimeCommands(commandPool, device);
 
         VkBufferCopy copyRegion{};
@@ -351,7 +349,7 @@ void utils::createImageView(const std::string& name,
     createInfo.subresourceRange.baseArrayLayer = 0;
     createInfo.subresourceRange.layerCount     = 1;
 
-    LOG_RESULT(
+    LOG_RESULT_SILENT(
         vkCreateImageView(device, &createInfo, nullptr, &imageView),
         "Create " + name + " image view"
     );

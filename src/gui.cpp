@@ -62,7 +62,7 @@ void Gui::build(){
     ImGuiIO& io = ImGui::GetIO(); (void)io;
 
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(450, 0), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(500, 0), ImGuiCond_Once);
     ImGui::SetNextWindowCollapsed(true, ImGuiCond_Once);
     ImGui::Begin("Performance");
         static float t = 0;
@@ -155,14 +155,12 @@ void Gui::build(){
         }
 
         {
-            float oldMinSampleShading = currMinSampleShading;
-
             ImGui::BeginDisabled(currSampleCount == VK_SAMPLE_COUNT_1_BIT);
-            ImGui::SliderFloat("Min sample shading", &currMinSampleShading, 0.f, 1.f);
+            if (ImGui::SliderFloat("Min sample shading", &currMinSampleShading, 0.f, 1.f, "%.2f")){
+                stateFlags |= STATE_CHANGED_MIN_SAMPLE_SHADING;
+            }
             ImGui::EndDisabled();
             helpMarker("Minimum fraction of sample shading - Requires MSAA");
-
-            if (oldMinSampleShading != currMinSampleShading) stateFlags |= STATE_CHANGED_MIN_SAMPLE_SHADING;
         }
         
         ImGui::Spacing();
@@ -209,6 +207,19 @@ void Gui::build(){
 
             ImGui::SliderFloat("History", &fpsHistory, 1, 10, "%.1f s");
         }
+    ImGui::End();
+
+
+    static ImGuiStyle& style = ImGui::GetStyle();
+
+    ImGui::SetNextWindowPos(ImVec2(550, 0), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_Once);
+    ImGui::SetNextWindowCollapsed(true, ImGuiCond_Once);
+    ImGui::Begin("Settings");
+        ImGui::Spacing();
+        ImGui::SeparatorText("UI");
+        if(ImGui::SliderFloat("Font size", &style.FontSizeBase, 6, 40, "%.0f"))
+            style._NextFrameFontSizeBase = style.FontSizeBase;
     ImGui::End();
 }
 
@@ -271,7 +282,7 @@ void Gui::style(){
     ImGuiStyle& style = ImGui::GetStyle();
 
     // - Font
-    ImFont* font = io.Fonts->AddFontFromFileTTF((dirFonts/"Rubik-Regular.ttf").c_str(), 16.f);
+    ImFont* font = io.Fonts->AddFontFromFileTTF((dirFonts/"Rubik-Regular.ttf").c_str(), 15.f);
     if (!font) LOG_WARNING("Failed to load font");
 
     // - Spacing/Padding

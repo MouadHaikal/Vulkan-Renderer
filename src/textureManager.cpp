@@ -291,7 +291,7 @@ void TextureManager::createTextureSampler(uint32_t mipLevels, VkSampler& texture
     createInfo.minLod     = 0.0f;
     createInfo.maxLod     = static_cast<float>(mipLevels);
 
-    LOG_RESULT(
+    LOG_RESULT_SILENT(
         vkCreateSampler(context.device, &createInfo, nullptr, &textureSampler), 
         "Create texture sampler"
     );
