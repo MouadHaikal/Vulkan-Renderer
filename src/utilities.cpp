@@ -368,3 +368,54 @@ std::string utils::getFileName(const std::string& path){
         return path;
     }
 }
+
+VkSampleCountFlagBits utils::getMaxUsableSampleCount(VkPhysicalDeviceProperties deviceProperties){
+    VkSampleCountFlags count = deviceProperties.limits.framebufferColorSampleCounts & 
+                               deviceProperties.limits.framebufferDepthSampleCounts;
+
+    if (count & VK_SAMPLE_COUNT_64_BIT) {
+        return VK_SAMPLE_COUNT_64_BIT;
+    }
+    if (count & VK_SAMPLE_COUNT_32_BIT) {
+        return VK_SAMPLE_COUNT_32_BIT;
+    }
+    if (count & VK_SAMPLE_COUNT_16_BIT) {
+        return VK_SAMPLE_COUNT_16_BIT;
+    }
+    if (count & VK_SAMPLE_COUNT_8_BIT) {
+        return VK_SAMPLE_COUNT_8_BIT;
+    }
+    if (count & VK_SAMPLE_COUNT_4_BIT) {
+        return VK_SAMPLE_COUNT_4_BIT;
+    }
+    if (count & VK_SAMPLE_COUNT_2_BIT) {
+        return VK_SAMPLE_COUNT_2_BIT;
+    }
+
+    return VK_SAMPLE_COUNT_1_BIT;
+}
+
+const char* utils::toCstr(VkPresentModeKHR presentMode){
+    switch (presentMode) {
+        case VK_PRESENT_MODE_FIFO_KHR:                      return "FIFO";
+        case VK_PRESENT_MODE_IMMEDIATE_KHR:                 return "Immediate";
+        case VK_PRESENT_MODE_MAILBOX_KHR:                   return "Mailbox";
+        case VK_PRESENT_MODE_FIFO_RELAXED_KHR:              return "FIFO Relaxed";
+        case VK_PRESENT_MODE_FIFO_LATEST_READY_EXT:         return "FIFO Latest Ready";
+        case VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR: return "Shared Continuous Refresh";
+        case VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR:     return "Shared Demand Refresh";
+        default:                                            return "N/A";
+    }
+}
+
+const char* utils::toCstr(VkSampleCountFlagBits sampleCount){
+    switch (sampleCount) {
+        case VK_SAMPLE_COUNT_64_BIT: return "64x";
+        case VK_SAMPLE_COUNT_32_BIT: return "32x";
+        case VK_SAMPLE_COUNT_16_BIT: return "16x";
+        case VK_SAMPLE_COUNT_8_BIT:  return "8x";
+        case VK_SAMPLE_COUNT_4_BIT:  return "4x";
+        case VK_SAMPLE_COUNT_2_BIT:  return "2x";
+        default:                     return "N/A";
+    }
+}

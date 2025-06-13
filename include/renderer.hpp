@@ -1,13 +1,10 @@
 #pragma once
 
 
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_vulkan.h>
-
 #include <scene.hpp>
 #include <camera.hpp>
 #include <inputHandler.hpp>
+#include <gui.hpp>
 
 
 const uint32_t API_VERSION = VK_API_VERSION_1_3;
@@ -45,8 +42,8 @@ private:
 
     VkDebugUtilsMessengerEXT     debugMessenger;
 
-    VkPhysicalDevice             physicalDevice = VK_NULL_HANDLE;
-    VkDevice                     device         = VK_NULL_HANDLE;
+    VkPhysicalDevice             physicalDevice;
+    VkDevice                     device;
 
     QueueFamilyIndices           queueFamilyIndices;
 
@@ -76,7 +73,7 @@ private:
     VkDeviceMemory               colorImageMemory;
     VkImageView                  colorImageView;
 
-    VkSampleCountFlagBits        msaaSamples;
+    VkSampleCountFlagBits        msaaSamples = VK_SAMPLE_COUNT_1_BIT;
     float                        minSampleShading = .4f;
 
     VkImage                      depthImage;
@@ -117,6 +114,8 @@ private:
     std::vector<VkSemaphore>     renderFinishedSemaphores;
     std::vector<VkFence>         inFlightFences;
 
+    Gui                          gui;
+
 
 
     //==================================Main Functions==================================
@@ -154,12 +153,12 @@ private:
     void initGUI();
 
 
+    void recreateRenderPass(VkSampleCountFlagBits sampleCount);
+
     void recreateSwapchain();
     void cleanupSwapchain();
 
-
-    void buildGUI();
-
+    void recreateGraphicsPipeline();
 
 
 
@@ -196,7 +195,6 @@ private:
     static std::vector<char> readFile(const std::string &fileName);
     VkFormat                 findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
     VkFormat                 findDepthFormat();
-    VkSampleCountFlagBits    getMaxUsableSampleCount();
 
 
     //---Check----------------------------------------------------------------------------
@@ -208,7 +206,6 @@ private:
 
     //---Choose---------------------------------------------------------------------------
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats);
-    VkPresentModeKHR   chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availableModes);
     VkExtent2D         chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities);
 
 

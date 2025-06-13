@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -14,6 +15,7 @@
 #include <vector>
 #include <algorithm>
 #include <unordered_map>
+#include <unordered_set>
 #include <type_traits>
 #include <functional>
 #include <cstddef>
@@ -52,7 +54,7 @@ struct QueueFamilyIndices {
 struct SwapchainSupportDetails {
     VkSurfaceCapabilitiesKHR        capabilities;
     std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR>   presentModes;
+    // std::vector<VkPresentModeKHR>   presentModes;
 };
 
 
@@ -169,5 +171,11 @@ namespace utils {
                                VkImageLayout oldLayout, VkImageLayout newLayout,
                                VkDevice device, VkQueue queue, VkCommandPool commandPool);
 
+    // Other
     std::string getFileName(const std::string& path);
+    
+    VkSampleCountFlagBits getMaxUsableSampleCount(VkPhysicalDeviceProperties deviceProperties);
+
+    const char* toCstr(VkPresentModeKHR presentMode);
+    const char* toCstr(VkSampleCountFlagBits sampleCount);
 }

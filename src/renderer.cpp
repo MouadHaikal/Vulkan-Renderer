@@ -39,8 +39,8 @@ void Renderer::init(GLFWwindow * appWindow){
     createGraphicsPipeline();
     LOG_TRACE(SEP);
 
-    createDepthResources();
     createColorResources();
+    createDepthResources();
     LOG_TRACE(SEP);
 
     createFramebuffers();
@@ -60,7 +60,6 @@ void Renderer::init(GLFWwindow * appWindow){
     LOG_TRACE(SEP);
 
     initGUI();
-    LOG_TRACE(SEP);
 }
 
 void Renderer::processInput(InputData input, float deltaTime){
@@ -71,6 +70,25 @@ void Renderer::processInput(InputData input, float deltaTime){
 void Renderer::drawFrame(){
     vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
+    {
+        VkSampleCountFlagBits newSampleCount;
+        float newMinSampleShading;
+
+        if (gui.shouldRecreateRenderPass(&newSampleCount)) {
+            recreateRenderPass(newSampleCount);
+            return;
+        }
+        else if (gui.shouldRecreateSwapchain()) {
+            recreateSwapchain();
+            return;
+        } 
+        else if (gui.shouldRecreateGraphicsPipeline(&newMinSampleShading)) {
+            minSampleShading = newMinSampleShading;
+            recreateGraphicsPipeline();
+            return;
+        }
+    }
+
     uint32_t imageIndex;
     VkResult result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
@@ -78,12 +96,13 @@ void Renderer::drawFrame(){
         LOG_TRACE("Swapchain out of date - recreating swapchain");
         recreateSwapchain();
         return;
-    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+    } 
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         LOG_FATAL("Failed to acquire swapchain image");
     }
 
 
-    buildGUI();
+    gui.build();
 
     // Only reset fence if work is getting submitted to avoid deadlocks
     vkResetFences(device, 1, &inFlightFences[currentFrame]);
@@ -145,9 +164,7 @@ void Renderer::cleanup(){
     scene.cleanup();
 
     LOG_TRACE("Cleanup : gui");
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
+    gui.cleanup();
 
     LOG_TRACE("Cleanup : swapchain");
     cleanupSwapchain();
@@ -293,23 +310,6 @@ void Renderer::pickPhysicalDevice(){
 
     LOG_INFO("↓ Physical device picked ↓"); 
     LOG_DEVICE_INFO(physicalDevice, queueFamilyIndices);
-
-    msaaSamples = getMaxUsableSampleCount();
-
-    switch (msaaSamples) {
-        case VK_SAMPLE_COUNT_64_BIT: LOG_INFO("MSAA : 64x");      break;
-        case VK_SAMPLE_COUNT_32_BIT: LOG_INFO("MSAA : 32x");      break;
-        case VK_SAMPLE_COUNT_16_BIT: LOG_INFO("MSAA : 16x");      break;
-        case VK_SAMPLE_COUNT_8_BIT : LOG_INFO("MSAA : 8x");       break;
-        case VK_SAMPLE_COUNT_4_BIT : LOG_INFO("MSAA : 4x");       break;
-        case VK_SAMPLE_COUNT_2_BIT : LOG_INFO("MSAA : 2x");       break;
-        case VK_SAMPLE_COUNT_1_BIT : LOG_INFO("MSAA : Disabled"); break;
-        default:;
-    }
-
-    if (msaaSamples > VK_SAMPLE_COUNT_1_BIT) LOG_INFO_S("Sample Shading Rate (min) : " << minSampleShading);
-    
-    LOG_DEBUG(SEP);
 }
 
 void Renderer::createLogicalDevice(){
@@ -374,7 +374,7 @@ void Renderer::createSwapchain(){
     SwapchainSupportDetails swapchainSupport = querySwapchainSupport(physicalDevice);
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapchainSupport.formats);
-    VkPresentModeKHR   presentMode   = chooseSwapPresentMode(swapchainSupport.presentModes);
+    VkPresentModeKHR   presentMode   = gui.getActivePresentMode();
     VkExtent2D         extent        = chooseSwapExtent(swapchainSupport.capabilities);
 
     uint32_t           imageCount    = swapchainSupport.capabilities.minImageCount + 1;
@@ -1193,138 +1193,53 @@ void Renderer::createSyncObjects(){
 }
 
 void Renderer::initGUI(){
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    ImGui_ImplVulkan_InitInfo initInfo{};
 
-    ImGui::StyleColorsDark();
+    initInfo.ApiVersion      = API_VERSION;
+    initInfo.Instance        = instance;
+    initInfo.PhysicalDevice  = physicalDevice;
+    initInfo.Device          = device;
+    initInfo.QueueFamily     = queueFamilyIndices.graphicsFamily.value();
+    initInfo.Queue           = graphicsQueue;
+    initInfo.PipelineCache   = nullptr;
+    initInfo.DescriptorPool  = guiDescriptorPool;
+    initInfo.RenderPass      = renderPass;
+    initInfo.Subpass         = 0;
+    initInfo.MinImageCount   = static_cast<uint32_t>(swapchainImages.size());
+    initInfo.ImageCount      = static_cast<uint32_t>(swapchainImages.size());
+    initInfo.MSAASamples     = msaaSamples;
+    initInfo.Allocator       = nullptr;
+    initInfo.CheckVkResultFn = [](VkResult res){ LOG_RESULT_SILENT(res, "imgui"); };
 
-    ImGui_ImplGlfw_InitForVulkan(window, true);
-    ImGui_ImplVulkan_InitInfo init_info{};
-
-    init_info.ApiVersion      = API_VERSION;
-    init_info.Instance        = instance;
-    init_info.PhysicalDevice  = physicalDevice;
-    init_info.Device          = device;
-    init_info.QueueFamily     = queueFamilyIndices.graphicsFamily.value();
-    init_info.Queue           = graphicsQueue;
-    init_info.PipelineCache   = nullptr;
-    init_info.DescriptorPool  = guiDescriptorPool;
-    init_info.RenderPass      = renderPass;
-    init_info.Subpass         = 0;
-    init_info.MinImageCount   = static_cast<uint32_t>(swapchainImages.size());
-    init_info.ImageCount      = static_cast<uint32_t>(swapchainImages.size());
-    init_info.MSAASamples     = msaaSamples;
-    init_info.Allocator       = nullptr;
-    init_info.CheckVkResultFn = [](VkResult res){ LOG_RESULT(res, "imgui"); };
-    ImGui_ImplVulkan_Init(&init_info);
+    gui.init(&initInfo, window, surface, msaaSamples, minSampleShading);
+}
 
 
-    // Styling
-    ImGuiStyle& style = ImGui::GetStyle();
+void Renderer::recreateRenderPass(VkSampleCountFlagBits sampleCount){
+    LOG_TRACE("Recreating render pass");
 
-    // - Font
-    ImFont* font = io.Fonts->AddFontFromFileTTF((dirFonts/"Rubik-Regular.ttf").c_str(), 15.f);
-    if (!font) LOG_WARNING("Failed to load font");
+    vkDeviceWaitIdle(device);
+    cleanupSwapchain();
 
-    // - Spacing/Padding
-    style.WindowPadding    = ImVec2(8.f, 6.f);
-    style.FramePadding     = ImVec2(12.f, 4.f);
-    style.ItemSpacing      = ImVec2(8.f, 4.f);
-    style.ItemInnerSpacing = ImVec2(4.f, 4.f);
-    style.IndentSpacing    = 20.f;
-    style.ScrollbarSize    = 10.f;
-    style.GrabMinSize      = 10.f;
+    vkDestroyPipeline(device, graphicsPipeline, nullptr);
+    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    vkDestroyRenderPass(device, renderPass, nullptr);
 
-    // - Rounding
-    style.WindowRounding    = 6.f;
-    style.ChildRounding     = 6.f;
-    style.FrameRounding     = 4.f;
-    style.GrabRounding      = 4.f;
-    style.PopupRounding     = 6.f;
-    style.ScrollbarRounding = 6.f;
-    style.TabRounding       = 4.0f;
+    msaaSamples = sampleCount;
 
-    // - Trees
-    style.TreeLinesFlags    = ImGuiTreeNodeFlags_DrawLinesFull;
-    style.TreeLinesSize     = 1.f;
-    style.TreeLinesRounding = 3.f;
+    createSwapchain();
+    createSwapchainImageViews();
 
-    // - Border
-    style.FrameBorderSize           = 1.f;
-    style.PopupBorderSize           = 1.f;
+    createRenderPass();
+    createGraphicsPipeline(); 
 
-    // - Hover
-    style.HoverFlagsForTooltipMouse = ImGuiHoveredFlags_DelayNone | ImGuiHoveredFlags_Stationary;
-    style.HoverFlagsForTooltipNav   = ImGuiHoveredFlags_DelayNone | ImGuiHoveredFlags_NoSharedDelay;
+    createColorResources();
+    createDepthResources();
 
+    createFramebuffers();
 
-    // - Colors
-    ImVec4* colors = ImGui::GetStyle().Colors;
-
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    colors[ImGuiCol_Text]                       = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-    colors[ImGuiCol_TextDisabled]               = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
-    colors[ImGuiCol_WindowBg]                   = ImVec4(0.14f, 0.14f, 0.14f, 0.94f);
-    colors[ImGuiCol_ChildBg]                    = ImVec4(0.00f, 0.00f, 0.00f, 0.31f);
-    colors[ImGuiCol_PopupBg]                    = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
-    colors[ImGuiCol_Border]                     = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-    colors[ImGuiCol_BorderShadow]               = ImVec4(0.20f, 0.20f, 0.20f, 0.39f);
-    colors[ImGuiCol_FrameBg]                    = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
-    colors[ImGuiCol_FrameBgHovered]             = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-    colors[ImGuiCol_FrameBgActive]              = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
-    colors[ImGuiCol_TitleBg]                    = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
-    colors[ImGuiCol_TitleBgActive]              = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
-    colors[ImGuiCol_TitleBgCollapsed]           = ImVec4(0.00f, 0.00f, 0.00f, 0.51f);
-    colors[ImGuiCol_MenuBarBg]                  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
-    colors[ImGuiCol_ScrollbarBg]                = ImVec4(0.35f, 0.35f, 0.35f, 0.59f);
-    colors[ImGuiCol_ScrollbarGrab]              = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
-    colors[ImGuiCol_ScrollbarGrabHovered]       = ImVec4(0.16f, 0.16f, 0.16f, 1.00f);
-    colors[ImGuiCol_ScrollbarGrabActive]        = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
-    colors[ImGuiCol_CheckMark]                  = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-    colors[ImGuiCol_SliderGrab]                 = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-    colors[ImGuiCol_SliderGrabActive]           = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
-    colors[ImGuiCol_Button]                     = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-    colors[ImGuiCol_ButtonHovered]              = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
-    colors[ImGuiCol_ButtonActive]               = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
-    colors[ImGuiCol_Header]                     = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-    colors[ImGuiCol_HeaderHovered]              = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
-    colors[ImGuiCol_HeaderActive]               = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
-    colors[ImGuiCol_Separator]                  = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-    colors[ImGuiCol_SeparatorHovered]           = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
-    colors[ImGuiCol_SeparatorActive]            = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
-    colors[ImGuiCol_ResizeGrip]                 = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-    colors[ImGuiCol_ResizeGripHovered]          = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
-    colors[ImGuiCol_ResizeGripActive]           = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
-    colors[ImGuiCol_InputTextCursor]            = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-    colors[ImGuiCol_TabHovered]                 = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
-    colors[ImGuiCol_Tab]                        = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
-    colors[ImGuiCol_TabSelected]                = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
-    colors[ImGuiCol_TabSelectedOverline]        = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
-    colors[ImGuiCol_TabDimmed]                  = ImVec4(0.20f, 0.20f, 0.20f, 0.78f);
-    colors[ImGuiCol_TabDimmedSelected]          = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-    colors[ImGuiCol_TabDimmedSelectedOverline]  = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-    colors[ImGuiCol_DockingPreview]             = ImVec4(0.26f, 0.59f, 0.98f, 0.70f);
-    colors[ImGuiCol_DockingEmptyBg]             = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
-    colors[ImGuiCol_PlotLines]                  = ImVec4(0.63f, 0.63f, 0.63f, 1.00f);
-    colors[ImGuiCol_PlotLinesHovered]           = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-    colors[ImGuiCol_PlotHistogram]              = ImVec4(0.63f, 0.63f, 0.63f, 1.00f);
-    colors[ImGuiCol_PlotHistogramHovered]       = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-    colors[ImGuiCol_TableHeaderBg]              = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
-    colors[ImGuiCol_TableBorderStrong]          = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-    colors[ImGuiCol_TableBorderLight]           = ImVec4(0.35f, 0.35f, 0.35f, 1.00f);
-    colors[ImGuiCol_TableRowBg]                 = ImVec4(0.04f, 0.04f, 0.04f, 0.39f);
-    colors[ImGuiCol_TableRowBgAlt]              = ImVec4(0.24f, 0.24f, 0.24f, 0.39f);
-    colors[ImGuiCol_TextLink]                   = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-    colors[ImGuiCol_TextSelectedBg]             = ImVec4(0.39f, 0.39f, 0.39f, 0.39f);
-    colors[ImGuiCol_TreeLines]                  = ImVec4(0.39f, 0.39f, 0.39f, 0.78f);
-    colors[ImGuiCol_DragDropTarget]             = ImVec4(0.39f, 0.39f, 0.39f, 0.78f);
-    colors[ImGuiCol_NavCursor]                  = ImVec4(0.39f, 0.39f, 0.39f, 0.78f);
-    colors[ImGuiCol_NavWindowingHighlight]      = ImVec4(0.39f, 0.39f, 0.39f, 0.78f);
-    colors[ImGuiCol_NavWindowingDimBg]          = ImVec4(0.35f, 0.35f, 0.35f, 0.27f);
-    colors[ImGuiCol_ModalWindowDimBg]           = ImVec4(0.35f, 0.35f, 0.35f, 0.27f);
+    gui.cleanup();
+    initGUI();
 }
 
 void Renderer::recreateSwapchain(){
@@ -1339,7 +1254,6 @@ void Renderer::recreateSwapchain(){
 
 
     vkDeviceWaitIdle(device);
-
     cleanupSwapchain();
 
     createSwapchain();
@@ -1350,7 +1264,8 @@ void Renderer::recreateSwapchain(){
 
     createFramebuffers();
 
-    ImGui_ImplVulkan_SetMinImageCount(static_cast<uint32_t>(swapchainImages.size()));
+    gui.setMinImageCount(static_cast<uint32_t>(swapchainImages.size()));
+
     LOG_TRACE("-------------------------------------------------");
 }
 
@@ -1376,38 +1291,13 @@ void Renderer::cleanupSwapchain(){
     vkDestroySwapchainKHR(device, swapchain, nullptr);
 }
 
-void Renderer::buildGUI(){
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+void Renderer::recreateGraphicsPipeline(){
+    vkDeviceWaitIdle(device);
 
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
+    vkDestroyPipeline(device, graphicsPipeline, nullptr);
+    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
-    bool yes = true;
-    ImGui::ShowDemoWindow(&yes);
-    ImGui::ShowStyleEditor();
-    // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
-    {
-        static float f = 0.0f;
-        static int counter = 0;
-
-        ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-        ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-        ImGui::Checkbox("Demo Window", &yes);      // Edit bools storing our window open/close state
-
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-        ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-        if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-            counter++;
-        ImGui::SameLine();
-        ImGui::Text("counter = %d", counter);
-
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-        ImGui::End();
-    }
+    createGraphicsPipeline();
 }
 
 
@@ -1623,7 +1513,6 @@ ssize_t Renderer::rateDeviceSuitability(VkPhysicalDevice device){
 
     bool required = indices.isComplete()                    &&
                     !swapchainDetails.formats.empty()       &&
-                    !swapchainDetails.presentModes.empty()  &&
                     deviceFeatures.samplerAnisotropy        &&
                     deviceFeatures.sampleRateShading        &&
                     vulkan12Features.runtimeDescriptorArray &&
@@ -1664,22 +1553,12 @@ SwapchainSupportDetails Renderer::querySwapchainSupport(VkPhysicalDevice device)
     // Capabilities
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
 
-
     // Formats
     uint32_t formatCount;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
     if (formatCount) {
         details.formats.resize(formatCount);
         vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.data());
-    }
-
-
-    // Presentation modes
-    uint32_t presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
-    if (presentModeCount) {
-        details.presentModes.resize(presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.presentModes.data());
     }
 
     return details;
@@ -1694,15 +1573,6 @@ VkSurfaceFormatKHR Renderer::chooseSwapSurfaceFormat(const std::vector<VkSurface
         }
     }
     return availableFormats[0];
-}
-
-VkPresentModeKHR Renderer::chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availableModes){
-    for (const auto& availableMode : availableModes) {
-        if (availableMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-            return availableMode;
-        }
-    }
-    return VK_PRESENT_MODE_FIFO_KHR;
 }
 
 VkExtent2D Renderer::chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities){
@@ -1820,8 +1690,7 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 
         scene.draw(commandBuffer, pipelineLayout, camera.getPosition());
 
-        ImGui::Render();
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+        gui.draw(commandBuffer);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -1893,33 +1762,4 @@ VkFormat Renderer::findDepthFormat(){
         VK_IMAGE_TILING_OPTIMAL,
         VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
     );
-}
-
-VkSampleCountFlagBits Renderer::getMaxUsableSampleCount(){
-    VkPhysicalDeviceProperties deviceProperties;
-    vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
-
-    VkSampleCountFlags count = deviceProperties.limits.framebufferColorSampleCounts & 
-                               deviceProperties.limits.framebufferDepthSampleCounts;
-
-    if (count & VK_SAMPLE_COUNT_64_BIT) {
-        return VK_SAMPLE_COUNT_64_BIT;
-    }
-    if (count & VK_SAMPLE_COUNT_32_BIT) {
-        return VK_SAMPLE_COUNT_32_BIT;
-    }
-    if (count & VK_SAMPLE_COUNT_16_BIT) {
-        return VK_SAMPLE_COUNT_16_BIT;
-    }
-    if (count & VK_SAMPLE_COUNT_8_BIT) {
-        return VK_SAMPLE_COUNT_8_BIT;
-    }
-    if (count & VK_SAMPLE_COUNT_4_BIT) {
-        return VK_SAMPLE_COUNT_4_BIT;
-    }
-    if (count & VK_SAMPLE_COUNT_2_BIT) {
-        return VK_SAMPLE_COUNT_2_BIT;
-    }
-
-    return VK_SAMPLE_COUNT_1_BIT;
 }
