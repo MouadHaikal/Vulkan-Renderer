@@ -1,6 +1,6 @@
 # Vulkan Renderer
 
-A real‑time rasterization renderer written from scratch in C++17 with [Vulkan](https://www.vulkan.org/) providing a clean foundation for experimenting with advanced rendering techniques offering high performance, low-level control, and seamless portability across Linux and Windows *(Not really for now. Windows is being windows)*.
+A real‑time rasterization renderer written from scratch in C++17 with [Vulkan](https://www.vulkan.org/) providing a clean foundation for experimenting with advanced rendering techniques offering high performance, low-level control, and seamless portability across Linux and Windows.
 <br/><br/>
 
 ## Table of Contents
@@ -15,9 +15,10 @@ A real‑time rasterization renderer written from scratch in C++17 with [Vulkan]
     + [Anti-aliasing](#anti-aliasing)
         + [MSAA](#msaa)
         + [Mipmapping](#mipmapping)
-    + [Camera Controls](#camera-controls)
 + [Cloning](#cloning)
-    + [Building](#building)
++ [Building](#building)
+    + [Linux](#linux)
+    + [Windows](#windows)
 + [Resources](#resources)
 + [Contact](#contact)
 <br/><br/>
@@ -134,32 +135,42 @@ Mipmaps are procedurally generated for each texture improving performance and re
 </div>
 <br/><br/>
 
-## Camera Controls
-The renderer lets you move around in real time using [GLFW](https://github.com/glfw/glfw) for input. Navigate using WASD and look around with the mouse. Hit Escape to free the cursor.
-<div align="center">
-    <table>
-        <tr>
-            <td><img src="docs/recordings/CameraControls.gif"/></td>
-        </tr>
-        <tr>
-            <td>Camera Controls Demo</td>
-        </tr>
-    </table>
-</div>
-<br/><br/>
-
 ## Cloning
 > [!IMPORTANT]
 > This repository contains submodules for external dependencies. Clone recursively to ensure everything is fetched properly.
 ```
 git clone --recurse-submodules --shallow-submodules https://github.com/MouadHaikal/Vulkan-Renderer
 ```
-### Building
-<img src="https://img.icons8.com/?size=100&id=d0hMePbLym7W&format=png&color=000000"  
-    height="25"  
-    style="vertical-align: middle;"  
-    alt="WIP Icon" />  *Work In Progress...*
+## Building
+## Linux
+### Dependencies
+- CMake 3.20 or higher
+- C++17 compatible compiler
+- Vulkan SDK
+- GLFW dependencies for Wayland and X11
 
+> The following commands will install all the dependencies listed above:
+#### Debian/Ubuntu
+```
+sudo apt install cmake build-essential vulkan-tools libvulkan-dev vulkan-validationlayers-dev spirv-tools libwayland-dev libxkbcommon-dev xorg-dev
+```
+#### Arch Linux
+```
+sudo pacman -S cmake base-devel vulkan-devel wayland libxkbcommon libxcursor libxi libxinerama libxrandr
+```
+> [!TIP]
+> Run **vkcube** to make sure Vulkan is installed correctly. You should see a spinning cube with the LunarG logo on its faces.
+
+A build script is available for convenience: [buildAndRun.sh](buildAndRun.sh)<br/>
+The executable will be built to *{project_root}/bin/VulkanRenderer*<br/>
+
+## Windows
+### Dependencies
+- CMake 3.20 or higher
+- C++17 compatible compiler
+- [Vulkan SDK](https://vulkan.lunarg.com/sdk/home#windows)
+
+Use cmake to generate project files for your preferred build system then build the project as usual<br/>
 <br/><br/>
 
 ## Resources

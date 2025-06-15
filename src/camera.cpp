@@ -1,28 +1,12 @@
 #include <camera.hpp>
 
 
-Camera::Camera() :
-    position(defaultPos), worldUp(defaultWorldUp), yaw(defaultYaw), pitch(defaultPitch), 
-    fovY(defaultFovY), near(defaultNear), far(defaultFar),
-    movementSpeed(defaultSpeed), mouseSensitivity(defaultSens)  
-{
-    updateCameraVectors();
-}
+Camera::Camera() { updateCameraVectors(); }
 
 
-void Camera::setPosition(glm::vec3 pos) { position = pos; }
 
-void Camera::setFovY(float fovY)      { this->fovY = std::clamp(fovY, minFovY, maxFovY); }
-void Camera::setNearPlane(float near) { this->near = std::clamp(near, minNear, far - minDepth); }
-void Camera::setFarPlane(float far)   { this->far  = std::clamp(far, near + minDepth, maxFar); }
-
-void Camera::setMovementSpeed(float speed)                 { movementSpeed = speed; }
-void Camera::setMouseSensitivity(float xSens, float ySens) { mouseSensitivity.x = xSens; mouseSensitivity.y = ySens; }
-
-
-const glm::vec3& Camera::getPosition() const             { return position; }
 glm::mat4 Camera::getViewMatrix() const                  { return glm::lookAt(position, position + front, worldUp); }
-glm::mat4 Camera::getProjMatrix(float aspectRatio) const { return glm::perspective(glm::radians(fovY), aspectRatio, near, far); }
+glm::mat4 Camera::getProjMatrix(float aspectRatio) const { return glm::perspective(glm::radians(fov), aspectRatio, near, far); }
 
 
 
@@ -41,10 +25,10 @@ void Camera::move(const glm::vec3& inputDir, float deltaTime){
 void Camera::rotate(float xOffset, float yOffset){
     if (!xOffset && !yOffset) return;
 
-    yaw   += xOffset * mouseSensitivity.x;
-    pitch += yOffset * mouseSensitivity.y;
+    yaw   += xOffset * mouseSensitivity.x / 100;
+    pitch += yOffset * mouseSensitivity.y / 100;
 
-    pitch = std::clamp(pitch, minPitch, maxPitch);
+    pitch = std::clamp(pitch, -80.f, 80.f);
 
     updateCameraVectors();
 }

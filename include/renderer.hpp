@@ -1,6 +1,7 @@
 #pragma once
 
 
+#include <memory>
 #include <scene.hpp>
 #include <camera.hpp>
 #include <inputHandler.hpp>
@@ -81,7 +82,7 @@ private:
     VkImageView                  depthImageView;
 
     Scene                        scene;
-    Camera                       camera;
+    std::shared_ptr<Camera>      camera;
 
     // View & Projection matrices 
     std::vector<VkBuffer>        vpUniformBuffers;
@@ -201,7 +202,7 @@ private:
     bool    checkInstanceExtensionSupport(std::vector<const char*> &extensions);
     bool    checkValidationLayerSupport();
     bool    checkDeviceExtensionSupport(VkPhysicalDevice device);
-    ssize_t rateDeviceSuitability(VkPhysicalDevice device);
+    int     rateDeviceSuitability(VkPhysicalDevice device);
 
 
     //---Choose---------------------------------------------------------------------------

@@ -1,5 +1,10 @@
 #pragma once
 
+
+#define FMT_HEADER_ONLY
+#include <fmt/base.h>
+#include <fmt/color.h>
+
 #include <utilities.hpp>
 
 
@@ -9,7 +14,7 @@ public:
         TRACE,
         DEBUG,
         INFO,
-        WARNING,
+        WARN,
         ERROR,
         FATAL
     };
@@ -26,9 +31,7 @@ public:
     static Logger& get();
     static void destroy();
 
-
-    Level getMinLevel();
-    void setMinLevel(Level level);
+    Level minLevel = Level::INFO;
 
     void log(Level level, const std::string& message) const;
     void logResult(VkResult result, const std::string& operation, const LogFlags& flags) const;
@@ -36,35 +39,30 @@ public:
 
 
     Logger(const Logger&)            = delete;
-    Logger& operator=(const Logger&) = delete;
     Logger(Logger&&)                 = delete;
+    Logger& operator=(const Logger&) = delete;
     Logger& operator=(Logger&&)      = delete;
 
 private:
+    static Logger* instance;
     Logger()  = default;
     ~Logger() = default;
 
 
-    static Logger*    instance;
-    static std::mutex instanceMutex;
-    static std::mutex logMutex;
-
-    Level             minLevel = Level::INFO;
-
-
-    const char* levelToString(Level level) const;
+    const char* toCstr(Level level) const;
+    fmt::color  toColor(Level level) const;
     std::string lowerCase(const std::string& str) const;
 };
 
 
 #define SEP "-------------------------------------------------"
 
-#define LOG_TRACE(msg)   Logger::get().log(Logger::Level::TRACE  , msg)
-#define LOG_DEBUG(msg)   Logger::get().log(Logger::Level::DEBUG  , msg)
-#define LOG_INFO(msg)    Logger::get().log(Logger::Level::INFO   , msg)
-#define LOG_WARNING(msg) Logger::get().log(Logger::Level::WARNING, msg)
-#define LOG_ERROR(msg)   Logger::get().log(Logger::Level::ERROR  , msg)
-#define LOG_FATAL(msg)   Logger::get().log(Logger::Level::FATAL  , msg)
+#define LOG_TRACE(msg)   Logger::get().log(Logger::Level::TRACE, msg)
+#define LOG_DEBUG(msg)   Logger::get().log(Logger::Level::DEBUG, msg)
+#define LOG_INFO(msg)    Logger::get().log(Logger::Level::INFO , msg)
+#define LOG_WARNING(msg) Logger::get().log(Logger::Level::WARN , msg)
+#define LOG_ERROR(msg)   Logger::get().log(Logger::Level::ERROR, msg)
+#define LOG_FATAL(msg)   Logger::get().log(Logger::Level::FATAL, msg)
 
 #define LOG_RESULT(result, operation)        Logger::get().logResult(result, operation, Logger::LogFlags(true , Logger::Level::FATAL))
 #define LOG_RESULT_SILENT(result, operation) Logger::get().logResult(result, operation, Logger::LogFlags(false, Logger::Level::FATAL))
@@ -98,7 +96,7 @@ private:
     do { \
         std::ostringstream oss__; \
         oss__ << stream; \
-        Logger::get().log(Logger::Level::WARNING, oss__.str()); \
+        Logger::get().log(Logger::Level::WARN, oss__.str()); \
     } while(0) 
 
 #define LOG_ERROR_S(stream) \

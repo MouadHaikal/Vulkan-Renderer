@@ -13,7 +13,7 @@ void App::run(){
 }
 
 void App::init(){
-    Logger::get().setMinLevel(Logger::Level::DEBUG);
+    Logger::get().minLevel = Logger::Level::DEBUG;
 
     glfwInit();
 

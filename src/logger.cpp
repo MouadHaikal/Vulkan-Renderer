@@ -1,55 +1,27 @@
 #include <logger.hpp>
 
 
-#define TEXT_COLOR_GRAY       "\033[38;5;15m"
-#define TEXT_COLOR_WHITE      "\033[37m"
-#define TEXT_COLOR_WHITE_BOLD "\033[1;37m"
-#define TEXT_COLOR_ORANGE     "\033[38;5;208m"
-#define TEXT_COLOR_FLAME      "\033[38;5;202m"
-#define TEXT_COLOR_RED        "\033[38;5;160m"
-
-#define RESET_TEXT_COLOR      "\033[0m"
-
-
-// Innitialize static members
-Logger*    Logger::instance = nullptr;
-std::mutex Logger::instanceMutex;
-std::mutex Logger::logMutex;
-
+Logger* Logger::instance = nullptr;
 
 Logger& Logger::get(){
-    std::lock_guard<std::mutex> lock(instanceMutex);
-    if (instance == nullptr) {
-        instance = new Logger();
-    }
+    if (!instance) instance = new Logger(); 
     return *instance;
 }
 
 void Logger::destroy(){
-    std::lock_guard<std::mutex> lock(instanceMutex);
-    if (instance != nullptr) {
-        delete instance;
-        instance = nullptr;
-    }
-}
+    if (!instance) return;
 
-Logger::Level Logger::getMinLevel(){ return minLevel; }
-
-void Logger::setMinLevel(Level level){ 
-    std::lock_guard<std::mutex> lock(logMutex);
-    minLevel = level; 
+    delete instance;
+    instance = nullptr;
 }
 
 void Logger::log(Level level, const std::string& message) const{
     if (level < minLevel) return;
 
-    std::lock_guard<std::mutex> lock(logMutex);
-
-    std::ostream& stream = (level >= Level::ERROR)? std::cerr : std::cout;
-    stream << levelToString(level) << message << RESET_TEXT_COLOR << std::endl;
+    fmt::print(fmt::fg(toColor(level)), "{} {}\n", toCstr(level), message);
 
     if (level == Level::FATAL) {
-        stream << TEXT_COLOR_RED "Aborting" RESET_TEXT_COLOR << std::endl;
+        fmt::print(fmt::fg(toColor(Level::FATAL)), "Aborting\n");
         std::abort();    
     }
 }
@@ -125,16 +97,28 @@ void Logger::logDeviceInfo(VkPhysicalDevice device, QueueFamilyIndices queueFami
     LOG_INFO("=================================================");
 }
 
-const char* Logger::levelToString(Level level) const{
-    switch (level) {
-        case Level::TRACE  : return TEXT_COLOR_GRAY        "[TRACE] ";
-        case Level::DEBUG  : return TEXT_COLOR_WHITE       "[DEBUG] ";
-        case Level::INFO   : return TEXT_COLOR_WHITE_BOLD  "[INFO]  ";
-        case Level::WARNING: return TEXT_COLOR_ORANGE      "[WARNING] ";
-        case Level::ERROR  : return TEXT_COLOR_FLAME       "[ERROR] ";
-        case Level::FATAL  : return TEXT_COLOR_RED         "[FATAL] ";
 
-        default            : return "[UNKNOWN]";
+const char* Logger::toCstr(Level level) const{
+    switch (level) {
+        case Level::TRACE  : return "[TRACE]";
+        case Level::DEBUG  : return "[DEBUG]";
+        case Level::INFO   : return "[INFO] ";
+        case Level::WARN   : return "[WARN] ";
+        case Level::ERROR  : return "[ERROR]";
+        case Level::FATAL  : return "[FATAL]";
+        default: return "";
+    }
+}
+
+fmt::color Logger::toColor(Level level) const{
+    switch (level) {
+        case Level::TRACE  : return fmt::color::light_gray;
+        case Level::DEBUG  : return fmt::color::white;
+        case Level::INFO   : return fmt::color::light_sky_blue;
+        case Level::WARN   : return fmt::color::orange;
+        case Level::ERROR  : return fmt::color::orange_red;
+        case Level::FATAL  : return fmt::color::crimson;
+        default: return fmt::color::dark_orange;
     }
 }
 

@@ -1,3 +1,4 @@
+#include "imgui.h"
 #include <gui.hpp>
 
 #include <logger.hpp>
@@ -18,7 +19,7 @@ Gui::Gui() : currPresentMode(VK_PRESENT_MODE_FIFO_KHR), stateFlags(0){
 }
 
 
-void Gui::init(ImGui_ImplVulkan_InitInfo* info, GLFWwindow* window, VkSurfaceKHR surface, VkSampleCountFlagBits sampleCount, float minSampleShading){
+void Gui::init(GuiInitInfo* info, ImGui_ImplVulkan_InitInfo* ImGuiInfo){
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImPlot::CreateContext();
@@ -29,19 +30,20 @@ void Gui::init(ImGui_ImplVulkan_InitInfo* info, GLFWwindow* window, VkSurfaceKHR
 
     style();
 
-    ImGui_ImplGlfw_InitForVulkan(window, true);
-    ImGui_ImplVulkan_Init(info);
+    ImGui_ImplGlfw_InitForVulkan(info->window, true);
+    ImGui_ImplVulkan_Init(ImGuiInfo);
 
 
-    currSampleCount = sampleCount;
-    currMinSampleShading = minSampleShading;
+    currSampleCount      = info->sampleCount;
+    currMinSampleShading = info->minSampleShading;
+    camera               = info->camera;
 
     // Present Modes
     uint32_t presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(info->PhysicalDevice, surface, &presentModeCount, nullptr);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(ImGuiInfo->PhysicalDevice, info->surface, &presentModeCount, nullptr);
 
     std::vector<VkPresentModeKHR> supportedPresentModes(presentModeCount);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(info->PhysicalDevice, surface, &presentModeCount, supportedPresentModes.data());
+    vkGetPhysicalDeviceSurfacePresentModesKHR(ImGuiInfo->PhysicalDevice, info->surface, &presentModeCount, supportedPresentModes.data());
 
     for (const auto& mode : supportedPresentModes) {
         if (presentModes.find(mode) != presentModes.end()) {
@@ -50,7 +52,7 @@ void Gui::init(ImGui_ImplVulkan_InitInfo* info, GLFWwindow* window, VkSurfaceKHR
     }
 
     // Device Info
-    vkGetPhysicalDeviceProperties(info->PhysicalDevice, &physicalDeviceProperties);
+    vkGetPhysicalDeviceProperties(ImGuiInfo->PhysicalDevice, &physicalDeviceProperties);
 }
 
 
@@ -59,7 +61,8 @@ void Gui::build(){
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    static ImGuiIO&    io    = ImGui::GetIO(); (void)io;
+    static ImGuiStyle& style = ImGui::GetStyle();
 
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
     ImGui::SetNextWindowSize(ImVec2(500, 0), ImGuiCond_Once);
@@ -70,7 +73,7 @@ void Gui::build(){
 
         ImGui::Text("Device : %s", physicalDeviceProperties.deviceName);
         
-        if (ImGui::BeginTable("##Performance", 2, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchSame)) {
+        if (ImGui::BeginTable("Metrics", 2, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchSame)) {
             ImGui::TableSetupColumn("Metric");
             ImGui::TableSetupColumn("Value");
             ImGui::TableHeadersRow();
@@ -101,7 +104,7 @@ void Gui::build(){
 
                 isSelected = (mode == currPresentMode);
 
-                if (ImGui::Selectable(utils::toCstr(mode), isSelected)) {
+                if (ImGui::Selectable(utils::toCstr(mode), isSelected) && !isSelected) {
                     currPresentMode = mode;
                     stateFlags |= STATE_CHANGED_PRESENT_MODE;
                 }
@@ -144,7 +147,7 @@ void Gui::build(){
 
                 isSelected = (sampleCount == currSampleCount);
 
-                if (ImGui::Selectable(utils::toCstr(sampleCount), isSelected)) {
+                if (ImGui::Selectable(utils::toCstr(sampleCount), isSelected) && !isSelected) {
                     currSampleCount = sampleCount;
                     stateFlags |= STATE_CHANGED_SAMPLE_COUNT;
                 }
@@ -179,7 +182,7 @@ void Gui::build(){
 
             fpsData.addPoint(t, io.Framerate);
 
-            if (ImPlot::BeginPlot("##Frame Rate", ImVec2(-1, 150))) {
+            if (ImPlot::BeginPlot("Frame Rate", ImVec2(-1, ImGui::GetFontSize() * 10))) {
                 ImPlot::SetupAxes("Time", "Frame Rate", ImPlotAxisFlags_NoTickLabels, 0);
                 ImPlot::SetupAxisLimits(ImAxis_X1, t - fpsHistory, t, ImGuiCond_Always);
                 ImPlot::SetupAxisLimits(ImAxis_Y1, 
@@ -210,16 +213,28 @@ void Gui::build(){
     ImGui::End();
 
 
-    static ImGuiStyle& style = ImGui::GetStyle();
 
     ImGui::SetNextWindowPos(ImVec2(550, 0), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_Once);
-    ImGui::SetNextWindowCollapsed(true, ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(450, 0), ImGuiCond_Once);
+    ImGui::SetNextWindowCollapsed(false, ImGuiCond_Once);
     ImGui::Begin("Settings");
-        ImGui::Spacing();
         ImGui::SeparatorText("UI");
+
         if(ImGui::SliderFloat("Font size", &style.FontSizeBase, 6, 40, "%.0f"))
             style._NextFrameFontSizeBase = style.FontSizeBase;
+
+        ImGui::Spacing();
+        ImGui::SeparatorText("Camera");
+        ImGui::TextDisabled("Move and look around using WASD and the mouse");
+        ImGui::TextDisabled("Hit Escape to toggle focus between the scene and the ui");
+        
+        ImGui::InputFloat3("Position", glm::value_ptr(camera->position));
+        ImGui::SameLine(); 
+        if (ImGui::Button("Reset")) camera->position = glm::vec3(0.f);
+
+        ImGui::InputFloat("Speed", &camera->movementSpeed);
+        ImGui::DragFloat2("Sensitivity", glm::value_ptr(camera->mouseSensitivity), 0.5f, 0.5f, 50.f);
+        ImGui::DragFloat("FOV", &camera->fov, 1.f, 10.f, 140.f);
     ImGui::End();
 }
 
@@ -263,7 +278,7 @@ bool Gui::shouldRecreateGraphicsPipeline(float* minSampleShading){
 void Gui::setMinImageCount(uint32_t count){ ImGui_ImplVulkan_SetMinImageCount(count); }
 
 
-VkPresentModeKHR Gui::getActivePresentMode() const{ return currPresentMode; }
+VkPresentModeKHR Gui::getCurrPresentMode() const{ return currPresentMode; }
 
 
 void Gui::cleanup(){
@@ -282,7 +297,7 @@ void Gui::style(){
     ImGuiStyle& style = ImGui::GetStyle();
 
     // - Font
-    ImFont* font = io.Fonts->AddFontFromFileTTF((dirFonts/"Rubik-Regular.ttf").c_str(), 15.f);
+    ImFont* font = io.Fonts->AddFontFromFileTTF((dirFonts/"Rubik-Regular.ttf").string().c_str(), 15.f);
     if (!font) LOG_WARNING("Failed to load font");
 
     // - Spacing/Padding

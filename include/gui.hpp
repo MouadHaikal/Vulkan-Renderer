@@ -8,14 +8,22 @@
 #include <implot.h>
 
 #include <utilities.hpp>
+#include <camera.hpp>
 
 
+struct GuiInitInfo{
+    GLFWwindow*             window;
+    VkSurfaceKHR            surface;
+    VkSampleCountFlagBits   sampleCount;
+    float                   minSampleShading;
+    std::shared_ptr<Camera> camera;
+};
 
 class Gui{
 public:
     Gui();
 
-    void init(ImGui_ImplVulkan_InitInfo* info, GLFWwindow* window, VkSurfaceKHR surface, VkSampleCountFlagBits sampleCount, float minSampleShading);
+    void init(GuiInitInfo* info, ImGui_ImplVulkan_InitInfo* ImGuiInfo);
 
     void build();
     void draw(VkCommandBuffer commandBuffer);
@@ -26,7 +34,7 @@ public:
 
     void setMinImageCount(uint32_t count);
 
-    VkPresentModeKHR getActivePresentMode() const;
+    VkPresentModeKHR getCurrPresentMode() const;
 
     void cleanup();
 private:
@@ -45,7 +53,7 @@ private:
     VkPresentModeKHR                           currPresentMode;
     VkSampleCountFlagBits                      currSampleCount;
     float                                      currMinSampleShading;
-
+    std::shared_ptr<Camera>                    camera;
 
 
     static void style();

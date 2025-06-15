@@ -8,7 +8,7 @@
 void Renderer::init(GLFWwindow * appWindow){
     LOG_DEBUG("Initializing renderer");
 
-    enableValidationLayers = Logger::get().getMinLevel() <= Logger::Level::ERROR;
+    enableValidationLayers = Logger::get().minLevel <= Logger::Level::ERROR;
     enableValidationLayers? LOG_DEBUG("Validation layers enabled") : LOG_DEBUG("Validation layers disabled");
 
     window = appWindow;
@@ -63,8 +63,8 @@ void Renderer::init(GLFWwindow * appWindow){
 }
 
 void Renderer::processInput(InputData input, float deltaTime){
-    camera.move(input.movement, deltaTime);
-    camera.rotate(input.mouseOffset.x, input.mouseOffset.y);
+    camera->move(input.movement, deltaTime);
+    camera->rotate(input.mouseOffset.x, input.mouseOffset.y);
 }
 
 void Renderer::drawFrame(){
@@ -290,15 +290,15 @@ void Renderer::pickPhysicalDevice(){
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-    std::multimap<ssize_t, VkPhysicalDevice> candidates;
+    std::multimap<int, VkPhysicalDevice> candidates;
 
     for (const auto& device : devices){
-        ssize_t score = rateDeviceSuitability(device);
+        int score = rateDeviceSuitability(device);
         candidates.insert(std::make_pair(score, device));
     }
 
 
-    if (candidates.rbegin()->first == -1) {
+    if (candidates.rbegin()->first < 0) {
         LOG_FATAL("Failed to find suitable GPU");
         return;
     } 
@@ -374,7 +374,7 @@ void Renderer::createSwapchain(){
     SwapchainSupportDetails swapchainSupport = querySwapchainSupport(physicalDevice);
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapchainSupport.formats);
-    VkPresentModeKHR   presentMode   = gui.getActivePresentMode();
+    VkPresentModeKHR   presentMode   = gui.getCurrPresentMode();
     VkExtent2D         extent        = chooseSwapExtent(swapchainSupport.capabilities);
 
     uint32_t           imageCount    = swapchainSupport.capabilities.minImageCount + 1;
@@ -470,6 +470,8 @@ void Renderer::createCommandPools(){
 }
 
 void Renderer::createScene(){
+    camera = std::make_shared<Camera>();
+
     VulkanContext context;
     context.physicalDevice      = physicalDevice;
     context.device              = device;
@@ -1193,25 +1195,32 @@ void Renderer::createSyncObjects(){
 }
 
 void Renderer::initGUI(){
-    ImGui_ImplVulkan_InitInfo initInfo{};
+    GuiInitInfo info{};
+    info.window           = window;
+    info.surface          = surface;
+    info.sampleCount      = msaaSamples;
+    info.minSampleShading = minSampleShading;
+    info.camera           = camera;
 
-    initInfo.ApiVersion      = API_VERSION;
-    initInfo.Instance        = instance;
-    initInfo.PhysicalDevice  = physicalDevice;
-    initInfo.Device          = device;
-    initInfo.QueueFamily     = queueFamilyIndices.graphicsFamily.value();
-    initInfo.Queue           = graphicsQueue;
-    initInfo.PipelineCache   = nullptr;
-    initInfo.DescriptorPool  = guiDescriptorPool;
-    initInfo.RenderPass      = renderPass;
-    initInfo.Subpass         = 0;
-    initInfo.MinImageCount   = static_cast<uint32_t>(swapchainImages.size());
-    initInfo.ImageCount      = static_cast<uint32_t>(swapchainImages.size());
-    initInfo.MSAASamples     = msaaSamples;
-    initInfo.Allocator       = nullptr;
-    initInfo.CheckVkResultFn = [](VkResult res){ LOG_RESULT_SILENT(res, "imgui"); };
+    ImGui_ImplVulkan_InitInfo ImGuiInfo{};
 
-    gui.init(&initInfo, window, surface, msaaSamples, minSampleShading);
+    ImGuiInfo.ApiVersion      = API_VERSION;
+    ImGuiInfo.Instance        = instance;
+    ImGuiInfo.PhysicalDevice  = physicalDevice;
+    ImGuiInfo.Device          = device;
+    ImGuiInfo.QueueFamily     = queueFamilyIndices.graphicsFamily.value();
+    ImGuiInfo.Queue           = graphicsQueue;
+    ImGuiInfo.PipelineCache   = nullptr;
+    ImGuiInfo.DescriptorPool  = guiDescriptorPool;
+    ImGuiInfo.RenderPass      = renderPass;
+    ImGuiInfo.Subpass         = 0;
+    ImGuiInfo.MinImageCount   = static_cast<uint32_t>(swapchainImages.size());
+    ImGuiInfo.ImageCount      = static_cast<uint32_t>(swapchainImages.size());
+    ImGuiInfo.MSAASamples     = msaaSamples;
+    ImGuiInfo.Allocator       = nullptr;
+    ImGuiInfo.CheckVkResultFn = [](VkResult res){ LOG_RESULT_SILENT(res, "imgui"); };
+
+    gui.init(&info, &ImGuiInfo);
 }
 
 
@@ -1481,8 +1490,8 @@ QueueFamilyIndices Renderer::findQueueFamilies(VkPhysicalDevice device){
     return indices;
 }
 
-ssize_t Renderer::rateDeviceSuitability(VkPhysicalDevice device){
-    ssize_t score = 0;
+int Renderer::rateDeviceSuitability(VkPhysicalDevice device){
+    int score = 0;
 
     QueueFamilyIndices indices = findQueueFamilies(device);
 
@@ -1688,7 +1697,7 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
                                 0, nullptr
         );
 
-        scene.draw(commandBuffer, pipelineLayout, camera.getPosition());
+        scene.draw(commandBuffer, pipelineLayout, camera->position);
 
         gui.draw(commandBuffer);
 
@@ -1704,8 +1713,8 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 void Renderer::updateUniformBuffers(uint32_t frame){
     // View & Projection matrices
     VPubo vpubo{
-        camera.getViewMatrix(),
-        camera.getProjMatrix(swapchainExtent.width / (float) swapchainExtent.height)
+        camera->getViewMatrix(),
+        camera->getProjMatrix(swapchainExtent.width / (float) swapchainExtent.height)
     };
 
     // The Y axis is pointing down in Vulkan (glm was made for OpenGL - Y axis pointing up)
