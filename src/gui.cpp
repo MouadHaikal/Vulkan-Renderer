@@ -225,7 +225,7 @@ void Gui::build(){
 
         ImGui::Spacing();
         ImGui::SeparatorText("Camera");
-        ImGui::TextDisabled("Move and look around using WASD and the mouse");
+        ImGui::TextDisabled("Move and look around using WASD+E+Space and the mouse");
         ImGui::TextDisabled("Hit Escape to toggle focus between the scene and the ui");
         
         ImGui::InputFloat3("Position", glm::value_ptr(camera->position));

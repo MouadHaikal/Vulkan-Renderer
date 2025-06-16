@@ -1,7 +1,6 @@
 #pragma once
 
 
-#include <memory>
 #include <scene.hpp>
 #include <camera.hpp>
 #include <inputHandler.hpp>
@@ -132,7 +131,7 @@ private:
 
     void createCommandPools();
 
-    void createScene();
+    void buildScene();
 
     void createDescriptorSetLayouts();
     void createRenderPass();

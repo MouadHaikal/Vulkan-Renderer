@@ -31,7 +31,7 @@ void Renderer::init(GLFWwindow * appWindow){
     createCommandPools();
     LOG_TRACE(SEP);
 
-    createScene();
+    buildScene();
     LOG_TRACE(SEP);
 
     createDescriptorSetLayouts();
@@ -469,7 +469,7 @@ void Renderer::createCommandPools(){
     }
 }
 
-void Renderer::createScene(){
+void Renderer::buildScene(){
     camera = std::make_shared<Camera>();
 
     VulkanContext context;
