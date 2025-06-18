@@ -17,6 +17,7 @@
 #include <unordered_set>
 #include <type_traits>
 #include <functional>
+#include <iterator>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -113,7 +114,7 @@ struct FragmentPushConstant {
 
 struct PointLight{
     alignas(16) glm::vec3 position  = glm::vec3(0.f);
-    alignas(4)  float     intensity = 1000.f;
+    alignas(4)  float     intensity = 10000.f;
     alignas(16) glm::vec3 color     = glm::vec3(1.f);
 };
 

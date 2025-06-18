@@ -71,20 +71,20 @@ void Renderer::drawFrame(){
     vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
     {
-        VkSampleCountFlagBits newSampleCount;
-        float newMinSampleShading;
-
-        if (gui.shouldRecreateRenderPass(&newSampleCount)) {
-            recreateRenderPass(newSampleCount);
+        if (gui.shouldRecreateRenderPass()) {
+            recreateRenderPass();
             return;
         }
         else if (gui.shouldRecreateSwapchain()) {
             recreateSwapchain();
             return;
         } 
-        else if (gui.shouldRecreateGraphicsPipeline(&newMinSampleShading)) {
-            minSampleShading = newMinSampleShading;
+        else if (gui.shouldRecreateGraphicsPipeline()) {
             recreateGraphicsPipeline();
+            return;
+        }
+        else if (gui.shouldRecreateUniformBuffers()) {
+            recreateUniformBuffers();
             return;
         }
     }
@@ -161,7 +161,7 @@ void Renderer::cleanup(){
     LOG_DEBUG("Renderer cleanup");
 
     LOG_TRACE("Cleanup : scene");
-    scene.cleanup();
+    scene->cleanup();
 
     LOG_TRACE("Cleanup : gui");
     gui.cleanup();
@@ -471,6 +471,7 @@ void Renderer::createCommandPools(){
 
 void Renderer::buildScene(){
     camera = std::make_shared<Camera>();
+    scene  = std::make_shared<Scene>();
 
     VulkanContext context;
     context.physicalDevice      = physicalDevice;
@@ -482,10 +483,10 @@ void Renderer::buildScene(){
     context.transferCommandPool = transferCommandPool;
 
     Scene::setContext(context);
-    scene.textureManager.addTexture(TEX_TYPE_BASE, "default.png");
+    scene->textureManager.addTexture(TEX_TYPE_BASE, "default.png");
 
 
-    auto sponzaModel = scene.addModel("Sponza.gltf");
+    auto sponzaModel = scene->addModel("Sponza.gltf");
 
     sponzaModel->modelMatrix = glm::rotate(
                                    glm::rotate(
@@ -501,10 +502,10 @@ void Renderer::buildScene(){
     );
 
 
-    scene.pointLights.push_back({glm::vec3(0.f, 400.f, -200.f), 20000.f, glm::vec3(.8f, 0.4f, 0.1f)});
-    scene.pointLights.push_back({glm::vec3(0.f, -400.f, -200.f), 20000.f, glm::vec3(.4f, 0.8f, .9f)});
+    scene->pointLights.push_back({glm::vec3(0.f, 400.f, -200.f), 20000.f, glm::vec3(.8f, 0.4f, 0.1f)});
+    scene->pointLights.push_back({glm::vec3(0.f, -400.f, -200.f), 20000.f, glm::vec3(.4f, 0.8f, .9f)});
 
-    scene.directionalLights.push_back({ glm::vec3(0.f, 0.f, -1.f), .1f, glm::vec3(1.f) });
+    scene->directionalLights.push_back({ glm::vec3(0.f, 0.f, -1.f), .1f, glm::vec3(1.f) });
 }
 
 void Renderer::createDescriptorSetLayouts(){
@@ -549,13 +550,13 @@ void Renderer::createDescriptorSetLayouts(){
     VkDescriptorSetLayoutBinding baseTexLayoutBinding{};
     baseTexLayoutBinding.binding         = 0;
     baseTexLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    baseTexLayoutBinding.descriptorCount = std::max(1u, static_cast<uint32_t>(scene.textureManager.getTextureCount(TEX_TYPE_BASE)));
+    baseTexLayoutBinding.descriptorCount = std::max(1u, static_cast<uint32_t>(scene->textureManager.getTextureCount(TEX_TYPE_BASE)));
     baseTexLayoutBinding.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
 
     VkDescriptorSetLayoutBinding normalTexLayoutBinding{};
     normalTexLayoutBinding.binding         = 1;
     normalTexLayoutBinding.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    normalTexLayoutBinding.descriptorCount = std::max(1u , static_cast<uint32_t>(scene.textureManager.getTextureCount(TEX_TYPE_NORMAL)));
+    normalTexLayoutBinding.descriptorCount = std::max(1u , static_cast<uint32_t>(scene->textureManager.getTextureCount(TEX_TYPE_NORMAL)));
     normalTexLayoutBinding.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
 
     std::array<VkDescriptorSetLayoutBinding, 2> texturesLayoutBindings = {
@@ -575,18 +576,18 @@ void Renderer::createDescriptorSetLayouts(){
 void Renderer::createRenderPass(){
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format         = swapchainImageFormat;
-    colorAttachment.samples        = msaaSamples;
+    colorAttachment.samples        = *msaaSamples;
     colorAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     colorAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout    = msaaSamples > VK_SAMPLE_COUNT_1_BIT ? 
+    colorAttachment.finalLayout    = *msaaSamples > VK_SAMPLE_COUNT_1_BIT ? 
         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
     VkAttachmentDescription depthAttachment{};
     depthAttachment.format         = findDepthFormat();
-    depthAttachment.samples        = msaaSamples;
+    depthAttachment.samples        = *msaaSamples;
     depthAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     depthAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -606,7 +607,7 @@ void Renderer::createRenderPass(){
 
 
     std::vector<VkAttachmentDescription> attachments; 
-    if (msaaSamples > VK_SAMPLE_COUNT_1_BIT) {
+    if (*msaaSamples > VK_SAMPLE_COUNT_1_BIT) {
         attachments = {
             colorAttachment,
             depthAttachment,
@@ -639,7 +640,7 @@ void Renderer::createRenderPass(){
     subpass.colorAttachmentCount    = 1;
     subpass.pColorAttachments       = &colorAttachmentRef;
     subpass.pDepthStencilAttachment = &depthAttachmentRef;
-    subpass.pResolveAttachments     = msaaSamples > VK_SAMPLE_COUNT_1_BIT ? &colorAttachmentResolveRef : nullptr;
+    subpass.pResolveAttachments     = *msaaSamples > VK_SAMPLE_COUNT_1_BIT ? &colorAttachmentResolveRef : nullptr;
 
     VkSubpassDependency dependency{};
     dependency.srcSubpass    = VK_SUBPASS_EXTERNAL;
@@ -740,9 +741,9 @@ void Renderer::createGraphicsPipeline(){
     // Multisampling --------------------------------
     VkPipelineMultisampleStateCreateInfo multisamplingInfo{};
     multisamplingInfo.sType                = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisamplingInfo.rasterizationSamples = msaaSamples;
-    multisamplingInfo.sampleShadingEnable  = msaaSamples > VK_SAMPLE_COUNT_1_BIT ? VK_TRUE : VK_FALSE;
-    multisamplingInfo.minSampleShading     = minSampleShading;
+    multisamplingInfo.rasterizationSamples = *msaaSamples;
+    multisamplingInfo.sampleShadingEnable  = *msaaSamples > VK_SAMPLE_COUNT_1_BIT ? VK_TRUE : VK_FALSE;
+    multisamplingInfo.minSampleShading     = *minSampleShading;
 
 
     // Depth Stencil --------------------------------
@@ -844,13 +845,13 @@ void Renderer::createGraphicsPipeline(){
 }
 
 void Renderer::createColorResources(){
-    if (msaaSamples == VK_SAMPLE_COUNT_1_BIT) return;
+    if (*msaaSamples == VK_SAMPLE_COUNT_1_BIT) return;
 
     VkFormat colorFormat = swapchainImageFormat;
 
     utils::createImage("color resource",
                        swapchainExtent.width, swapchainExtent.height, 
-                       1, msaaSamples, 
+                       1, *msaaSamples, 
                        colorFormat, VK_IMAGE_TILING_OPTIMAL, 
                        VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 
                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
@@ -870,7 +871,7 @@ void Renderer::createDepthResources(){
 
     utils::createImage("depth", 
                        swapchainExtent.width, swapchainExtent.height,
-                       1, msaaSamples,
+                       1, *msaaSamples,
                        depthFormat, VK_IMAGE_TILING_OPTIMAL, 
                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 
                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
@@ -898,7 +899,7 @@ void Renderer::createFramebuffers(){
 
     for (size_t i=0; i < swapchainImageViews.size(); ++i) {
         std::vector<VkImageView> attachments;
-        if (msaaSamples > VK_SAMPLE_COUNT_1_BIT) {
+        if (*msaaSamples > VK_SAMPLE_COUNT_1_BIT) {
             attachments = {
                 colorImageView,
                 depthImageView,
@@ -929,8 +930,8 @@ void Renderer::createFramebuffers(){
 
 void Renderer::createUniformBuffers(){
     VkDeviceSize vpBufferSize = sizeof(VPubo);
-    VkDeviceSize plBufferSize = 16 + sizeof(PointLight) * scene.pointLights.size();
-    VkDeviceSize dlBufferSize = 16 + sizeof(DirectionalLight) * scene.directionalLights.size();
+    VkDeviceSize plBufferSize = 16 + sizeof(PointLight) * scene->pointLights.size();              // light count (int) + lights array
+    VkDeviceSize dlBufferSize = 16 + sizeof(DirectionalLight) * scene->directionalLights.size();  // light count (int) + lights array
 
 
     vpUniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1000,8 +1001,8 @@ void Renderer::createDescriptorPools(){
 
     poolSize.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSize.descriptorCount = static_cast<uint32_t>(
-                                    scene.textureManager.getTextureCount(TEX_TYPE_BASE) +
-                                    scene.textureManager.getTextureCount(TEX_TYPE_NORMAL)
+                                    scene->textureManager.getTextureCount(TEX_TYPE_BASE) +
+                                    scene->textureManager.getTextureCount(TEX_TYPE_NORMAL)
     );
 
     createInfo.poolSizeCount = 1;
@@ -1114,12 +1115,12 @@ void Renderer::createDescriptorSets(){
     texDescriptorWrite.dstSet          = texDescriptorSet;
 
 
-    if (const size_t baseTexturesCount = scene.textureManager.getTextureCount(TEX_TYPE_BASE)) {
+    if (const size_t baseTexturesCount = scene->textureManager.getTextureCount(TEX_TYPE_BASE)) {
         std::vector<VkDescriptorImageInfo> baseTexturesInfo(baseTexturesCount);
 
         for (size_t i=0; i < baseTexturesCount; ++i) {
-            baseTexturesInfo[i].sampler     = scene.textureManager.getTextureSampler(TEX_TYPE_BASE, i);
-            baseTexturesInfo[i].imageView   = scene.textureManager.getTextureImageView(TEX_TYPE_BASE, i);
+            baseTexturesInfo[i].sampler     = scene->textureManager.getTextureSampler(TEX_TYPE_BASE, i);
+            baseTexturesInfo[i].imageView   = scene->textureManager.getTextureImageView(TEX_TYPE_BASE, i);
             baseTexturesInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         }
 
@@ -1132,12 +1133,12 @@ void Renderer::createDescriptorSets(){
         vkUpdateDescriptorSets(device, 1, &texDescriptorWrite, 0, nullptr);
     }
 
-    if (const size_t normalTexturesCount = scene.textureManager.getTextureCount(TEX_TYPE_NORMAL)) {
+    if (const size_t normalTexturesCount = scene->textureManager.getTextureCount(TEX_TYPE_NORMAL)) {
         std::vector<VkDescriptorImageInfo> normalTexturesInfo(normalTexturesCount);
 
         for (size_t i=0; i < normalTexturesCount; ++i) {
-            normalTexturesInfo[i].sampler     = scene.textureManager.getTextureSampler(TEX_TYPE_NORMAL, i);
-            normalTexturesInfo[i].imageView   = scene.textureManager.getTextureImageView(TEX_TYPE_NORMAL, i);
+            normalTexturesInfo[i].sampler     = scene->textureManager.getTextureSampler(TEX_TYPE_NORMAL, i);
+            normalTexturesInfo[i].imageView   = scene->textureManager.getTextureImageView(TEX_TYPE_NORMAL, i);
             normalTexturesInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         }
 
@@ -1198,8 +1199,9 @@ void Renderer::initGUI(){
     GuiInitInfo info{};
     info.window           = window;
     info.surface          = surface;
-    info.sampleCount      = msaaSamples;
+    info.msaaSampleCount  = msaaSamples;
     info.minSampleShading = minSampleShading;
+    info.scene            = scene;
     info.camera           = camera;
 
     ImGui_ImplVulkan_InitInfo ImGuiInfo{};
@@ -1216,7 +1218,7 @@ void Renderer::initGUI(){
     ImGuiInfo.Subpass         = 0;
     ImGuiInfo.MinImageCount   = static_cast<uint32_t>(swapchainImages.size());
     ImGuiInfo.ImageCount      = static_cast<uint32_t>(swapchainImages.size());
-    ImGuiInfo.MSAASamples     = msaaSamples;
+    ImGuiInfo.MSAASamples     = *msaaSamples;
     ImGuiInfo.Allocator       = nullptr;
     ImGuiInfo.CheckVkResultFn = [](VkResult res){ LOG_RESULT_SILENT(res, "imgui"); };
 
@@ -1224,7 +1226,7 @@ void Renderer::initGUI(){
 }
 
 
-void Renderer::recreateRenderPass(VkSampleCountFlagBits sampleCount){
+void Renderer::recreateRenderPass(){
     LOG_TRACE("Recreating render pass");
 
     vkDeviceWaitIdle(device);
@@ -1233,8 +1235,6 @@ void Renderer::recreateRenderPass(VkSampleCountFlagBits sampleCount){
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyRenderPass(device, renderPass, nullptr);
-
-    msaaSamples = sampleCount;
 
     createSwapchain();
     createSwapchainImageViews();
@@ -1279,7 +1279,7 @@ void Renderer::recreateSwapchain(){
 }
 
 void Renderer::cleanupSwapchain(){
-    if (msaaSamples > VK_SAMPLE_COUNT_1_BIT) {
+    if (*msaaSamples > VK_SAMPLE_COUNT_1_BIT) {
         vkDestroyImageView(device, colorImageView, nullptr);
         vkDestroyImage(device, colorImage, nullptr);
         vkFreeMemory(device, colorImageMemory, nullptr);
@@ -1307,6 +1307,69 @@ void Renderer::recreateGraphicsPipeline(){
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
     createGraphicsPipeline();
+}
+
+void Renderer::recreateUniformBuffers(){
+    vkDeviceWaitIdle(device);
+
+    for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        vkDestroyBuffer(device, vpUniformBuffers[i], nullptr);
+        vkFreeMemory(device, vpUniformBuffersMemory[i], nullptr);
+
+        vkDestroyBuffer(device, plUniformBuffers[i], nullptr);
+        vkFreeMemory(device, plUniformBuffersMemory[i], nullptr);
+
+        vkDestroyBuffer(device, dlUniformBuffers[i], nullptr);
+        vkFreeMemory(device, dlUniformBuffersMemory[i], nullptr);
+    }
+
+    createUniformBuffers();
+    for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        VkDescriptorBufferInfo vpBufferInfo{};
+        vpBufferInfo.buffer = vpUniformBuffers[i];
+        vpBufferInfo.offset = 0;
+        vpBufferInfo.range  = sizeof(VPubo);     // VK_WHOLE_SIZE
+        
+        VkDescriptorBufferInfo plBufferInfo{};
+        plBufferInfo.buffer = plUniformBuffers[i];
+        plBufferInfo.offset = 0;
+        plBufferInfo.range  = VK_WHOLE_SIZE;
+
+        VkDescriptorBufferInfo dlBufferInfo{};
+        dlBufferInfo.buffer = dlUniformBuffers[i];
+        dlBufferInfo.offset = 0;
+        dlBufferInfo.range  = VK_WHOLE_SIZE;
+
+
+        std::array<VkWriteDescriptorSet, 3> uboDescriptorWrites{};
+
+        uboDescriptorWrites[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        uboDescriptorWrites[0].dstSet          = uboDescriptorSets[i];
+        uboDescriptorWrites[0].dstBinding      = 0;
+        uboDescriptorWrites[0].dstArrayElement = 0;
+        uboDescriptorWrites[0].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboDescriptorWrites[0].descriptorCount = 1;
+        uboDescriptorWrites[0].pBufferInfo     = &vpBufferInfo;
+
+        uboDescriptorWrites[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        uboDescriptorWrites[1].dstSet          = uboDescriptorSets[i];
+        uboDescriptorWrites[1].dstBinding      = 1;
+        uboDescriptorWrites[1].dstArrayElement = 0;
+        uboDescriptorWrites[1].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboDescriptorWrites[1].descriptorCount = 1;
+        uboDescriptorWrites[1].pBufferInfo     = &plBufferInfo;
+
+        uboDescriptorWrites[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        uboDescriptorWrites[2].dstSet          = uboDescriptorSets[i];
+        uboDescriptorWrites[2].dstBinding      = 2;
+        uboDescriptorWrites[2].dstArrayElement = 0;
+        uboDescriptorWrites[2].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboDescriptorWrites[2].descriptorCount = 1;
+        uboDescriptorWrites[2].pBufferInfo     = &dlBufferInfo;
+
+
+        vkUpdateDescriptorSets(device, static_cast<uint32_t>(uboDescriptorWrites.size()), uboDescriptorWrites.data(), 0, nullptr);
+    }
 }
 
 
@@ -1697,7 +1760,7 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
                                 0, nullptr
         );
 
-        scene.draw(commandBuffer, pipelineLayout, camera->position);
+        scene->draw(commandBuffer, pipelineLayout, camera->position);
 
         gui.draw(commandBuffer);
 
@@ -1725,19 +1788,19 @@ void Renderer::updateUniformBuffers(uint32_t frame){
 
 
     // Point lights
-    int pointLightCount = static_cast<int>(scene.pointLights.size());
+    int pointLightCount = static_cast<int>(scene->pointLights.size());
     memcpy(plUniformBuffersMapped[frame], &pointLightCount, sizeof(int));
 
     void* plBufferArrayptr = static_cast<char*>(plUniformBuffersMapped[frame]) + 16;
-    memcpy(plBufferArrayptr, scene.pointLights.data(), sizeof(PointLight) * pointLightCount);
+    memcpy(plBufferArrayptr, scene->pointLights.data(), sizeof(PointLight) * pointLightCount);
 
 
     // Directional lights
-    int directionalLightCount = static_cast<int>(scene.directionalLights.size());
+    int directionalLightCount = static_cast<int>(scene->directionalLights.size());
     memcpy(dlUniformBuffersMapped[frame], &directionalLightCount, sizeof(int));
 
     void* dlBufferArrayptr = static_cast<char*>(dlUniformBuffersMapped[frame]) + 16;
-    memcpy(dlBufferArrayptr, scene.directionalLights.data(), sizeof(DirectionalLight) * directionalLightCount);
+    memcpy(dlBufferArrayptr, scene->directionalLights.data(), sizeof(DirectionalLight) * directionalLightCount);
 }
 
 VkFormat Renderer::findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features){

@@ -8,15 +8,17 @@
 #include <implot.h>
 
 #include <utilities.hpp>
+#include <scene.hpp>
 #include <camera.hpp>
 
 
 struct GuiInitInfo{
-    GLFWwindow*             window;
-    VkSurfaceKHR            surface;
-    VkSampleCountFlagBits   sampleCount;
-    float                   minSampleShading;
-    std::shared_ptr<Camera> camera;
+    GLFWwindow*                            window;
+    VkSurfaceKHR                           surface;
+    std::shared_ptr<VkSampleCountFlagBits> msaaSampleCount;
+    std::shared_ptr<float>                 minSampleShading;
+    std::shared_ptr<Scene>                 scene;
+    std::shared_ptr<Camera>                camera;
 };
 
 class Gui{
@@ -28,9 +30,10 @@ public:
     void build();
     void draw(VkCommandBuffer commandBuffer);
 
-    bool shouldRecreateRenderPass(VkSampleCountFlagBits* sampleCount);
+    bool shouldRecreateRenderPass();
     bool shouldRecreateSwapchain();
-    bool shouldRecreateGraphicsPipeline(float* minSampleShading);
+    bool shouldRecreateGraphicsPipeline();
+    bool shouldRecreateUniformBuffers();
 
     void setMinImageCount(uint32_t count);
 
@@ -41,7 +44,8 @@ private:
     enum StateFlagBits{
         STATE_CHANGED_PRESENT_MODE       = 1 << 0,
         STATE_CHANGED_SAMPLE_COUNT       = 1 << 1,
-        STATE_CHANGED_MIN_SAMPLE_SHADING = 1 << 2
+        STATE_CHANGED_MIN_SAMPLE_SHADING = 1 << 2,
+        STATE_CHANGED_LIGHT_COUNT        = 1 << 3
     };
 
     uint32_t stateFlags;
@@ -51,8 +55,9 @@ private:
 
     std::unordered_map<VkPresentModeKHR, bool> availablePresentModes;
     VkPresentModeKHR                           currPresentMode;
-    VkSampleCountFlagBits                      currSampleCount;
-    float                                      currMinSampleShading;
+    std::shared_ptr<VkSampleCountFlagBits>     msaaSampleCount;
+    std::shared_ptr<float>                     minSampleShading;
+    std::shared_ptr<Scene>                     scene;
     std::shared_ptr<Camera>                    camera;
 
 

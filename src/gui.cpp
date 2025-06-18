@@ -1,4 +1,3 @@
-#include "imgui.h"
 #include <gui.hpp>
 
 #include <logger.hpp>
@@ -34,9 +33,10 @@ void Gui::init(GuiInitInfo* info, ImGui_ImplVulkan_InitInfo* ImGuiInfo){
     ImGui_ImplVulkan_Init(ImGuiInfo);
 
 
-    currSampleCount      = info->sampleCount;
-    currMinSampleShading = info->minSampleShading;
-    camera               = info->camera;
+    msaaSampleCount  = info->msaaSampleCount;
+    minSampleShading = info->minSampleShading;
+    scene            = info->scene;
+    camera           = info->camera;
 
     // Present Modes
     uint32_t presentModeCount;
@@ -137,7 +137,7 @@ void Gui::build(){
             ImGui::EndCombo();
         }
 
-        if (ImGui::BeginCombo("MSAA", utils::toCstr(currSampleCount))) {
+        if (ImGui::BeginCombo("MSAA", utils::toCstr(*msaaSampleCount))) {
             bool isSelected;
 
             for (VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT; 
@@ -145,10 +145,10 @@ void Gui::build(){
                 sampleCount = static_cast<VkSampleCountFlagBits>(sampleCount << 1)
             ) {
 
-                isSelected = (sampleCount == currSampleCount);
+                isSelected = (sampleCount == *msaaSampleCount);
 
                 if (ImGui::Selectable(utils::toCstr(sampleCount), isSelected) && !isSelected) {
-                    currSampleCount = sampleCount;
+                    *msaaSampleCount = sampleCount;
                     stateFlags |= STATE_CHANGED_SAMPLE_COUNT;
                 }
 
@@ -158,8 +158,8 @@ void Gui::build(){
         }
 
         {
-            ImGui::BeginDisabled(currSampleCount == VK_SAMPLE_COUNT_1_BIT);
-            if (ImGui::SliderFloat("Min sample shading", &currMinSampleShading, 0.f, 1.f, "%.2f")){
+            ImGui::BeginDisabled(*msaaSampleCount == VK_SAMPLE_COUNT_1_BIT);
+            if (ImGui::SliderFloat("Min sample shading", minSampleShading.get(), 0.f, 1.f, "%.2f")){
                 stateFlags |= STATE_CHANGED_MIN_SAMPLE_SHADING;
             }
             ImGui::EndDisabled();
@@ -224,17 +224,88 @@ void Gui::build(){
             style._NextFrameFontSizeBase = style.FontSizeBase;
 
         ImGui::Spacing();
-        ImGui::SeparatorText("Camera");
-        ImGui::TextDisabled("Move and look around using WASD+E+Space and the mouse");
-        ImGui::TextDisabled("Hit Escape to toggle focus between the scene and the ui");
+        ImGui::SeparatorText("Scene");
+        if (ImGui::CollapsingHeader("Models")) {
+        }
         
-        ImGui::InputFloat3("Position", glm::value_ptr(camera->position));
-        ImGui::SameLine(); 
-        if (ImGui::Button("Reset")) camera->position = glm::vec3(0.f);
+        if (ImGui::CollapsingHeader("Camera")) {
+            ImGui::TextDisabled("Move and look around using WASD+E+Space and the mouse");
+            ImGui::TextDisabled("Hit Escape to toggle focus between the scene and the ui");
 
-        ImGui::InputFloat("Speed", &camera->movementSpeed);
-        ImGui::DragFloat2("Sensitivity", glm::value_ptr(camera->mouseSensitivity), 0.5f, 0.5f, 50.f);
-        ImGui::DragFloat("FOV", &camera->fov, 1.f, 10.f, 140.f);
+            ImGui::InputFloat3("Position", glm::value_ptr(camera->position));
+            ImGui::SameLine(); 
+            if (ImGui::Button("Reset")) camera->position = glm::vec3(0.f);
+
+            ImGui::InputFloat("Speed", &camera->movementSpeed);
+            ImGui::DragFloat2("Sensitivity", glm::value_ptr(camera->mouseSensitivity), 0.5f, 0.5f, 50.f);
+            ImGui::DragFloat("FOV", &camera->fov, 1.f, 10.f, 140.f);
+        }
+
+        if (ImGui::CollapsingHeader("Lighting")) {
+            ImGui::Spacing();
+            ImGui::SeparatorText("Point lights");
+            
+            int idx = 1;
+            for (auto it = scene->pointLights.begin(); it != scene->pointLights.end(); ) {
+                ImGui::PushID(idx);    
+
+                if (ImGui::TreeNode("##PL", "Point light %d", idx)) {
+                    ImGui::ColorEdit3("Color", glm::value_ptr(it->color));
+                    ImGui::DragFloat3("Position", glm::value_ptr(it->position), 10.f);
+                    ImGui::DragFloat("Intensity", &it->intensity, 100.f);
+                    
+                    if (ImGui::SmallButton("Remove##PL")) {
+                        stateFlags |= STATE_CHANGED_LIGHT_COUNT;
+                        it = scene->pointLights.erase(it);
+                        ImGui::TreePop();
+                        ImGui::PopID();
+                        continue;
+                    } 
+
+                    ImGui::TreePop();
+                }
+            
+                ImGui::PopID();
+                ++it;
+                ++idx;
+            }
+            if (ImGui::Button("Add##PL")) {
+                scene->pointLights.emplace_back();
+                stateFlags |= STATE_CHANGED_LIGHT_COUNT;
+            }
+            
+            ImGui::Spacing();
+            ImGui::SeparatorText("Directional lights");
+
+            idx = 1;
+            for (auto it = scene->directionalLights.begin(); it != scene->directionalLights.end(); ) {
+                ImGui::PushID(idx);
+                if (ImGui::TreeNode("##DL", "Directional light %d", idx)) {
+                    ImGui::ColorEdit3("Color", glm::value_ptr(it->color));
+                    ImGui::DragFloat3("Direction", glm::value_ptr(it->direction), 10.f);
+                    ImGui::DragFloat("Normal irradiance", &it->normalIrradiance, .001f);
+
+                    if (ImGui::SmallButton("Remove##DL")) {
+                        stateFlags |= STATE_CHANGED_LIGHT_COUNT;
+                        it = scene->directionalLights.erase(it);
+                        ImGui::TreePop();
+                        ImGui::PopID();
+                        continue;
+                    } 
+
+                    ImGui::TreePop();
+                }
+
+                ImGui::PopID();
+                ++it;
+                ++idx;
+            }
+
+            if (ImGui::Button("Add##DL")) {
+                scene->directionalLights.emplace_back();
+                stateFlags |= STATE_CHANGED_LIGHT_COUNT;
+            }
+        }
     ImGui::End();
 }
 
@@ -244,9 +315,7 @@ void Gui::draw(VkCommandBuffer commandBuffer){
 }
 
 
-bool Gui::shouldRecreateRenderPass(VkSampleCountFlagBits* sampleCount){
-    *sampleCount = currSampleCount;
-
+bool Gui::shouldRecreateRenderPass(){
     if (stateFlags & STATE_CHANGED_SAMPLE_COUNT) {
         stateFlags &= ~STATE_CHANGED_SAMPLE_COUNT;
         return true;
@@ -264,11 +333,18 @@ bool Gui::shouldRecreateSwapchain(){
     return false;
 }
 
-bool Gui::shouldRecreateGraphicsPipeline(float* minSampleShading){
-    *minSampleShading = currMinSampleShading;
-
+bool Gui::shouldRecreateGraphicsPipeline(){
     if (stateFlags & STATE_CHANGED_MIN_SAMPLE_SHADING) {
         stateFlags &= ~STATE_CHANGED_MIN_SAMPLE_SHADING;
+        return true;
+    }
+
+    return false;
+}
+
+bool Gui::shouldRecreateUniformBuffers(){
+    if (stateFlags & STATE_CHANGED_LIGHT_COUNT) {
+        stateFlags &= ~STATE_CHANGED_LIGHT_COUNT;
         return true;
     }
 

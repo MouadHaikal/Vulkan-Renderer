@@ -73,14 +73,11 @@ private:
     VkDeviceMemory               colorImageMemory;
     VkImageView                  colorImageView;
 
-    VkSampleCountFlagBits        msaaSamples = VK_SAMPLE_COUNT_1_BIT;
-    float                        minSampleShading = .4f;
-
     VkImage                      depthImage;
     VkDeviceMemory               depthImageMemory;
     VkImageView                  depthImageView;
 
-    Scene                        scene;
+    std::shared_ptr<Scene>       scene;
     std::shared_ptr<Camera>      camera;
 
     // View & Projection matrices 
@@ -115,6 +112,9 @@ private:
     std::vector<VkFence>         inFlightFences;
 
     Gui                          gui;
+
+    std::shared_ptr<VkSampleCountFlagBits> msaaSamples = std::make_shared<VkSampleCountFlagBits>(VK_SAMPLE_COUNT_1_BIT);
+    std::shared_ptr<float>       minSampleShading = std::make_shared<float>(.4f);
 
 
 
@@ -153,12 +153,13 @@ private:
     void initGUI();
 
 
-    void recreateRenderPass(VkSampleCountFlagBits sampleCount);
+    void recreateRenderPass();
 
     void recreateSwapchain();
     void cleanupSwapchain();
 
     void recreateGraphicsPipeline();
+    void recreateUniformBuffers();
 
 
 

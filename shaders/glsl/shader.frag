@@ -1,9 +1,6 @@
 #version 460
 #extension GL_EXT_nonuniform_qualifier : require
 
-const int   MAX_PL    = 10;   // Point lights
-const int   MAX_DL    = 10;   // Directional lights
-
 const float AMBIENT   = 0.01;
 const float DIFFUSE   = 1.0;
 const float SPECULAR  = 1.0;
@@ -31,12 +28,12 @@ struct DirectionalLight{
 
 layout(set = 0, binding = 1) uniform PointLightData{
     int        lightCount;
-    PointLight lights[MAX_PL];
+    PointLight lights[1];         // Array size does not matter here
 } plData;
 
 layout(set = 0, binding = 2) uniform DirectionalLightData{
     int              lightCount;
-    DirectionalLight lights[MAX_DL];
+    DirectionalLight lights[1];   // Array size does not matter here
 } dlData;
 
 

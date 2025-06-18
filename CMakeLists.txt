@@ -42,6 +42,10 @@ list(APPEND IMGUI_SOURCES
 )
 
 
+# fmt
+add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/fmt)
+
+
 add_executable(VulkanRenderer ${SRC_FILES} ${IMGUI_SOURCES})
 
 target_include_directories(VulkanRenderer PRIVATE 
@@ -56,4 +60,5 @@ target_link_libraries(VulkanRenderer PRIVATE
     Vulkan::Vulkan 
     glfw 
     assimp
+    fmt::fmt
 )
