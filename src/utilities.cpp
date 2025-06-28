@@ -399,9 +399,10 @@ const char* utils::toCstr(VkPresentModeKHR presentMode){
         case VK_PRESENT_MODE_IMMEDIATE_KHR:                 return "Immediate";
         case VK_PRESENT_MODE_MAILBOX_KHR:                   return "Mailbox";
         case VK_PRESENT_MODE_FIFO_RELAXED_KHR:              return "FIFO Relaxed";
-        case VK_PRESENT_MODE_FIFO_LATEST_READY_EXT:         return "FIFO Latest Ready";
-        case VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR: return "Shared Continuous Refresh";
-        case VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR:     return "Shared Demand Refresh";
+        // Provided by extensions:
+            // case VK_PRESENT_MODE_FIFO_LATEST_READY_EXT:         return "FIFO Latest Ready";
+            // case VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR: return "Shared Continuous Refresh";
+            // case VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR:     return "Shared Demand Refresh";
         default:                                            return "N/A";
     }
 }

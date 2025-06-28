@@ -7,7 +7,7 @@
 #include <gui.hpp>
 
 
-const uint32_t API_VERSION = VK_API_VERSION_1_3;
+constexpr uint32_t API_VERSION = VK_API_VERSION_1_3;
 
 const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
@@ -17,7 +17,7 @@ const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-const int MAX_FRAMES_IN_FLIGHT = 3;
+constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
 
 class Renderer {
@@ -107,9 +107,9 @@ private:
 
     std::vector<VkCommandBuffer> graphicsCommandBuffers;
 
-    std::vector<VkSemaphore>     imageAvailableSemaphores;
-    std::vector<VkSemaphore>     renderFinishedSemaphores;
-    std::vector<VkFence>         inFlightFences;
+    std::vector<VkFence>         inFlightFences;            // Per frame in flight
+    std::vector<VkSemaphore>     imageAvailableSemaphores;  // Per frame in flight
+    std::vector<VkSemaphore>     renderFinishedSemaphores;  // Per swapchain image
 
     Gui                          gui;
 

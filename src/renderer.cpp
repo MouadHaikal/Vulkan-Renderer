@@ -123,7 +123,7 @@ void Renderer::drawFrame(){
     submitInfo.commandBufferCount     = 1;
     submitInfo.pCommandBuffers        = &graphicsCommandBuffers[currentFrame];
 
-    VkSemaphore signalSemaphores[]    = { renderFinishedSemaphores[currentFrame] };
+    VkSemaphore signalSemaphores[]    = { renderFinishedSemaphores[imageIndex] };
     submitInfo.signalSemaphoreCount   = 1;
     submitInfo.pSignalSemaphores      = signalSemaphores;
 
@@ -195,7 +195,6 @@ void Renderer::cleanup(){
 
     LOG_TRACE("Cleanup : sync objects");
     for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
         vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
         vkDestroyFence(device, inFlightFences[i], nullptr);
     }
@@ -420,10 +419,25 @@ void Renderer::createSwapchain(){
     swapchainImages.resize(imageCount);
     vkGetSwapchainImagesKHR(device, swapchain, &imageCount, swapchainImages.data());
 
-    LOG_TRACE_S("Swapchain image count : " << imageCount);
-
     swapchainImageFormat = surfaceFormat.format;
     swapchainExtent      = extent;
+
+
+    renderFinishedSemaphores.resize(imageCount);
+
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    for (size_t i = 0; i < imageCount; ++i) {
+        LOG_RESULT(
+            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]),
+            "Create sync object: renderFinishedSemaphore " + std::to_string(i)
+        );
+    }
+
+
+    LOG_DEBUG_S("Swapchain image count : " << imageCount);
+    LOG_DEBUG_S("Max frames in flight  : " << MAX_FRAMES_IN_FLIGHT);
 }
 
 void Renderer::createSwapchainImageViews(){
@@ -1168,9 +1182,8 @@ void Renderer::createGraphicsCommandBuffers(){
 }
 
 void Renderer::createSyncObjects(){
-    imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+    imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -1181,16 +1194,12 @@ void Renderer::createSyncObjects(){
 
     for (size_t i=0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         LOG_RESULT(
-            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]),
-            "Create sync object: imageAvailableSemaphore " + std::to_string(i)
-        );
-        LOG_RESULT(
-            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]),
-            "Create sync object: renderFinishedSemaphore " + std::to_string(i)
-        );
-        LOG_RESULT(
             vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]),
             "Create sync object: inFlightFence " + std::to_string(i)
+        );
+        LOG_RESULT(
+            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]),
+            "Create sync object: imageAvailableSemaphore " + std::to_string(i)
         );
     }
 }
@@ -1289,12 +1298,13 @@ void Renderer::cleanupSwapchain(){
     vkDestroyImage(device, depthImage, nullptr);
     vkFreeMemory(device, depthImageMemory, nullptr);
 
-    for (size_t i=0; i < swapchainFramebuffers.size(); ++i) {
-        vkDestroyFramebuffer(device, swapchainFramebuffers[i], nullptr);
-    }
 
-    for (size_t i=0; i < swapchainImageViews.size(); ++i) {
+    for (size_t i = 0; i < swapchainImages.size(); ++i) {
+        vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
+
         vkDestroyImageView(device, swapchainImageViews[i], nullptr); 
+
+        vkDestroyFramebuffer(device, swapchainFramebuffers[i], nullptr);
     }
 
     vkDestroySwapchainKHR(device, swapchain, nullptr);
