@@ -312,7 +312,8 @@ layout(location = 0) out struct { vec4 Color; vec2 UV; } Out;
 
 void main()
 {
-    Out.Color = aColor;
+    // Out.Color = aColor;
+    Out.Color = vec4(pow(aColor.rgb, vec3(2.2)), aColor.a);
     Out.UV = aUV;
     gl_Position = vec4(aPos * pc.uScale + pc.uTranslate, 0, 1);
 }

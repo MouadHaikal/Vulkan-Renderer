@@ -8,7 +8,7 @@ cd ..
 mkdir -p build
 cd build
 
-cmake ..
+cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build .
 
 cd ../bin

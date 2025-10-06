@@ -24,8 +24,6 @@ A real‑time rasterization renderer written from scratch in C++17 with [Vulkan]
 <br/><br/>
 
 ## Features
-> [!NOTE]
-> This is an active project with features continuously being added and refined.
 <br/><br/>
 
 ## GUI
