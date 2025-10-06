@@ -24,7 +24,7 @@ A real‑time rasterization renderer written from scratch in C++17 with [Vulkan]
 <br/><br/>
 
 ## Features
-<br/><br/>
+<br/>
 
 ## GUI
 This project makes use of the docking branch of [ImGui](https://github.com/ocornut/imgui) to render a few useful UI elements. Will probably be expanded later with plans to add interactive gizmo. Plots are created using [ImPlot](https://github.com/epezent/implot).<br/> 
